@@ -261,20 +261,36 @@ export default function VinylSheetRoom({ quote, setQuote, setMode, setPage }) {
     function calculateProduct(fullWidthPieces, strips, rollWidth = 12) {
 
         let totalLength = 0;
+        const cuts = [];
 
         fullWidthPieces.forEach(piece => {
             totalLength += piece.cutLength;
+
+            cuts.push({
+                cutLength: piece.cutLength,
+                rollWidth: rollWidth,
+                pieces: [piece]
+            });
+
         });
 
         strips.forEach(strip => {
             totalLength += strip.stripLength;
+
+            cuts.push({
+                cutLength: strip.stripLength,
+                rollWidth: rollWidth,
+                pieces: [strip.pieces]
+            });
+
         });
 
         return {
             totalLength,
             totalSqft: totalLength * rollWidth,
             strips,
-            fullWidthPieces
+            fullWidthPieces,
+            cuts
         };
     }
 
@@ -579,7 +595,24 @@ export default function VinylSheetRoom({ quote, setQuote, setMode, setPage }) {
             )}
 
             {step === "roomQuantity" && (
-                <div className="bg-white rounded-2xl shadow-xl p-10 text-center space-y-6">
+                <div className="relative w-[800px] bg-white rounded-2xl shadow-xl p-10 text-center space-y-6">
+
+                    <div className="absolute top-8 right-8 w-50 bg-gray-100 rounded-xl shadow-lg p-4 text-left">
+                        <h3 className="font-bold text-lg mb-3">
+                            Cutting Plan
+                        </h3>
+
+                        {material?.cuts?.map((cut, index) => (
+                            <div
+                                key={index}
+                                className="bg-white rounded-lg p-2 shadow mb-2"
+                            >
+                                <p className="font-semibold">
+                                    Cut {index + 1}: {cut.cutLength}ft
+                                </p>
+                            </div>
+                        ))}
+                    </div>
                     <h2 className="text-3xl font-bold text-center">
                         Total square footage
                     </h2>
@@ -591,6 +624,7 @@ export default function VinylSheetRoom({ quote, setQuote, setMode, setPage }) {
                     <p className="text-5xl font-bold text-blue-600">
                         {material?.totalSqft} sqft
                     </p>
+
 
                     <button
                         className="w-full text-lg py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"

@@ -17,7 +17,12 @@ export default function SampleSignOut({ setMode }) {
   const [barcode, setBarcode] = useState("");
   const [results, setResults] = useState([]);
 
+  const [notFoundBarcode, setNotFoundBarcode] = useState("");
+  const [miscOpen, setMiscOpen] = useState(false);
+  const [miscDescription, setMiscDescription] = useState("");
+
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAcdiYAZOqw4mZj7YX2gF1acPEfZh1aXBEx2YXuVsjPZOTrM9YVEp0WLNgQ3Eif5Dqcg/exec"
+  
   async function searchBarcode(forcedBarcode = null) {
     let code = forcedBarcode ?? barcode;
 
@@ -25,8 +30,17 @@ export default function SampleSignOut({ setMode }) {
       code = barcode;
     }
 
+    code = code.trim();
+
     if (!code) {
       alert("No barcode entered");
+      return;
+    }
+
+    if (code === "99999999") {
+      setBarcode("")
+      setNotFoundBarcode("");
+      setMiscOpen(true);
       return;
     }
 
@@ -42,7 +56,14 @@ export default function SampleSignOut({ setMode }) {
       console.log("SEARCH RESULT:", data);
 
       if (!data || data.length === 0) {
-        alert("No result found");
+        setNotFoundBarcode(code);
+        setBarcode("");
+        return;
+      }
+
+      if (data.length === 1) {
+        addToCart(data[0]);
+        return
       }
 
       setResults(data);
@@ -53,9 +74,14 @@ export default function SampleSignOut({ setMode }) {
   }
 
   function addToCart(item) {
-    if (cartItems.includes(item)) return;
+    setCartItems(prev => {
+      if (prev.includes(item)) {
+        return prev;
+      }
 
-    setCartItems(prev => [...prev, item]);
+      return [...prev, item];
+    })
+
     setResults([]);
     setBarcode("");
   }
@@ -205,13 +231,51 @@ export default function SampleSignOut({ setMode }) {
             className="border p-3 w-full"
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                searchBarcode();
+              }
+            }}
           />
+
+          {notFoundBarcode && (
+            <div className="border border-red-300 bg-red-50 p-4 rounded-xl space-y-3">
+              <p className="font-semibold">
+                Barcode {notFoundBarcode} was not found.
+              </p>
+
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded-xl"
+                onClick={() => setMiscOpen(true)}
+              >
+                Add as Unlisted Sample
+              </button>
+
+              <button
+                className="bg-gray-400 px-4 py-2 rounded-xl ml-2"
+                onClick={() => setNotFoundBarcode("")}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
 
           <button
             className="bg-blue-600 text-white p-3 rounded-xl"
             onClick={() => searchBarcode(barcode)}
           >
             Search
+          </button>
+
+          <button
+            className="bg-yellow-500 text-black p-3 rounded-xl"
+            onClick={() => {
+              setNotFoundBarcode("");
+              setMiscOpen(true);
+            }}
+          >
+            Add Unlisted Sample
           </button>
 
           {/* RESULTS */}
@@ -236,7 +300,9 @@ export default function SampleSignOut({ setMode }) {
               <span
                 className="text-red-500 cursor-pointer"
                 onClick={() =>
-                  setCartItems(cartItems.filter(x => x !== item))
+                  setCartItems(prev =>
+                    prev.filter((_, index) => index !== i)
+                  )
                 }
               >
                 ✕
@@ -278,6 +344,67 @@ export default function SampleSignOut({ setMode }) {
                 searchBarcode(scannedCode);
               }}
             />
+          )}
+
+          {miscOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+
+                <h3 className="text-xl font-bold text-center">
+                  Add Unlisted Sample
+                </h3>
+
+                {notFoundBarcode && (
+                  <p className="text-center">
+                    Barcode: <strong>{notFoundBarcode}</strong>
+                  </p>
+                )}
+
+                <input
+                  type="text"
+                  placeholder="Enter Sample Description"
+                  className="border p-3 w-full rounded"
+                  value={miscDescription}
+                  onChange={(e) => setMiscDescription(e.target.value)}
+                  autoFocus
+                />
+
+                <div className="flex gap-3">
+
+                  <button
+                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-xl"
+                    onClick={() => {
+                      if (!miscDescription.trim()) {
+                        alert("Enter a sample description");
+                        return;
+                      }
+
+                      const miscItem = notFoundBarcode
+                        ? `UNLISTED - ${notFoundBarcode} - ${miscDescription.trim()}`
+                        : `UNLISTED - ${miscDescription.trim()}`
+                      
+                      addToCart(miscItem);
+
+                      setMiscDescription("");
+                      setNotFoundBarcode("");
+                      setMiscOpen(false);
+                    }}
+                  >
+                    Add Sample  
+                  </button>
+
+                  <button
+                    className="flex-1 bg-gray-400 px-4 py-2 rounded-xl ml-2"
+                    onClick={() => {
+                      setMiscDescription("");
+                      setMiscOpen(false);
+                    }} 
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </>
       )}
