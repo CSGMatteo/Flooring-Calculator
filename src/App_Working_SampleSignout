@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import ScannerModal from "./ScannerModal";
-import { supabase } from "../supabaseClient";
 
 export default function SampleSignOut({ setMode }) {
 
@@ -38,7 +37,6 @@ export default function SampleSignOut({ setMode }) {
       return;
     }
 
-    // Universal unlisted-sample barcode
     if (code === "99999999") {
       setBarcode("")
       setNotFoundBarcode("");
@@ -47,50 +45,42 @@ export default function SampleSignOut({ setMode }) {
     }
 
     try {
-      console.log("Searching Supabase for:", code);
+      console.log("Searching for:", code);
 
-      const { data, error } = await supabase
-        .from("Samples")
-        .select("id, barcode, sample_name")
-        .eq("barcode", code)
-        .single();
+      const res = await fetch(
+        `${SCRIPT_URL}?action=search&barcode=${encodeURIComponent(code)}&t=${Date.now()}`
+      );
 
-      if (error) {
-        console.error("SUPABASE ERROR:", error);
+      const data = await res.json();
 
-        // No matching sample
-        if (error.code === "PGRST116") {
-          setNotFoundBarcode(code);
-          setBarcode("");
-          return;
-        }
+      console.log("SEARCH RESULT:", data);
 
-        alert("Error searching sample");
+      if (!data || data.length === 0) {
+        setNotFoundBarcode(code);
+        setBarcode("");
         return;
       }
 
-      console.log("FOUND SAMPLE", data);
+      if (data.length === 1) {
+        addToCart(data[0]);
+        return
+      }
 
-      addToCart(data);
-
+      setResults(data);
     } catch (err) {
       console.error(err);
-      alert("Error searching sample");
+      alert("Error Sending Barcode");
     }
   }
 
   function addToCart(item) {
     setCartItems(prev => {
-      const alreadyAdded = prev.some(
-        existing => existing.id === item.id
-      );
-
-      if (alreadyAdded) {
+      if (prev.includes(item)) {
         return prev;
       }
 
       return [...prev, item];
-    });
+    })
 
     setResults([]);
     setBarcode("");
@@ -103,47 +93,36 @@ export default function SampleSignOut({ setMode }) {
     }
 
     try {
-      const res = await fetch("/api/signout", {
+      const res = await fetch(SCRIPT_URL, {
         method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
         body: JSON.stringify({
+          action: "signout",
           customerInfo,
           items: cartItems
         })
       });
 
       const data = await res.json();
+      console.log("SCRIPT RESPONSE:", data);
 
-      console.log("SIGNOUT RESPONSE:", data);
-
-      if (!res.ok || !data.success) {
-        throw new Error(
-          data.error || "Unknown sign out error"
-        );
+      if (!data.success) {
+        throw new Error(data.error || "Unknown Error");
       }
 
       alert("Samples Signed Out");
 
       setCartItems([]);
-
       setCustomerInfo({
         name: "",
         number: "",
-        employe: ""
+        employee: ""
       });
 
-      setMode("menu");
+      setMode("menu")
 
     } catch (err) {
-      console.error("SIGN OUT ERROR:", err);
-
-      alert(
-        `Sign out failed: ${err.message}`
-      );
+      console.error(err);
+      alert("Sign out failed ❌");
     }
   }
 
@@ -316,14 +295,8 @@ export default function SampleSignOut({ setMode }) {
           <h3 className="font-bold">Cart</h3>
 
           {cartItems.map((item, i) => (
-            <div key={item.id} className="flex justify-between border p-2 rounded">
-              <div>
-                <div>{item.sample_name}</div>
-
-                <div className="text-sm text-gray-500">
-                  Barcode: {item.barcode}
-                </div>
-              </div>
+            <div key={i} className="flex justify-between border p-2 rounded">
+              <span>{item}</span>
               <span
                 className="text-red-500 cursor-pointer"
                 onClick={() =>
@@ -406,12 +379,9 @@ export default function SampleSignOut({ setMode }) {
                         return;
                       }
 
-                      const miscItem = {
-                        id: `misc-${crpyto.randomUUID()}`,
-                        barcode: notFoundBarcode || "UNLISTED",
-                        sample_name: miscDescription.trim(),
-                        is_unlisted: true
-                      };
+                      const miscItem = notFoundBarcode
+                        ? `UNLISTED - ${notFoundBarcode} - ${miscDescription.trim()}`
+                        : `UNLISTED - ${miscDescription.trim()}`
                       
                       addToCart(miscItem);
 
