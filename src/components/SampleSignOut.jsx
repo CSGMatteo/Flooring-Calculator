@@ -22,6 +22,26 @@ export default function SampleSignOut({ setMode }) {
   const [miscOpen, setMiscOpen] = useState(false);
   const [miscDescription, setMiscDescription] = useState("");
 
+  const [returnBarcode, setReturnBarcode] = useState("");
+  const [returnItems, setReturnItems] = useState([]);
+  const [returnScannerOpen, setReturnScannerOpen] = useState(false);
+
+  const [activeSamples, setActiveSamples] = useState([]);
+  const [activeLoading, setActiveLoading] = useState(false);
+  const [activeSearch, setActiveSearch] = useState("")
+
+  const filteredActiveSamples = activeSamples.filter(item => {
+    const search = activeSearch.toLowerCase();
+
+    return (
+      item.customer_name?.toLowerCase().includes(search) ||
+      item.customer_phone?.toLowerCase().includes(search) ||
+      item.employee_name?.toLowerCase().includes(search) ||
+      item.sample_name_snapshot?.toLowerCase().includes(search) ||
+      item.barcode_snapshot?.toLowerCase().includes(search)
+    );
+  });
+
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAcdiYAZOqw4mZj7YX2gF1acPEfZh1aXBEx2YXuVsjPZOTrM9YVEp0WLNgQ3Eif5Dqcg/exec"
   
   async function searchBarcode(forcedBarcode = null) {
@@ -76,6 +96,119 @@ export default function SampleSignOut({ setMode }) {
     } catch (err) {
       console.error(err);
       alert("Error searching sample");
+    }
+  }
+
+  async function searchReturnBarcode(forcedBarcode = null) {
+    let code = forcedBarcode ?? returnBarcode;
+
+    if (typeof code !== "string") {
+      code = returnBarcode;
+    }
+
+    code = code.trim();
+
+    if (!code) {
+      alert("No barcode entered")
+      return
+    }
+
+    try {
+      const res = await fetch(
+        `/api/find-active-sample?barcode=${encodeURIComponent(code)}`
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.error || "Samples could not be found");
+        setReturnBarcode("")
+        return;
+      }
+
+      setReturnItems(prev => {
+        const alreadyAdded = prev.some(
+          item => item.id === data.item.id
+        );
+
+        if (alreadyAdded) {
+          return prev;
+        }
+
+        return [...prev, data.item];
+      });
+
+      setReturnBarcode("");
+
+    } catch (err) {
+      console.error("RETURN LOOKUP ERROR:", err);
+      alert("Error searching for returned sample");
+    }
+  }
+
+  async function confirmReturns() {
+    if (!returnedItems.length) {
+      alert("No samples selected");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/return-samples", {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+          itemsIds: returnItems.map(item => item.id)
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(
+          data.error || "Unable to return samples"
+        );
+      }
+
+      alert(
+        `${data.returnedCount} sample${
+          data.returnedCount === 1 ? "" : "s"
+        } returned`
+      );
+
+      setReturnItems([]);
+      setReturnBarcode("")
+      setStep("signOutOptions");
+
+    } catch (err) {
+      console.error("RETURN ERROR:", err);
+      alert(`Return faild: ${err.message}`);
+    }
+  }
+
+  async function loadActiveSamples() {
+    setActiveLoading(true);
+
+    try {
+      const res = await fetch("/api/active-samples");
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(
+          data.error || "Unable to load samples"
+        );
+      }
+
+      setActiveSamples(data.items);
+
+    } catch (err) {
+      console.error("ACTIVE SAMPLE ERROR:", err);
+      alert(`Unable to load samples: ${err.message}`);
+    } finally {
+      setActiveLoading(false)
     }
   }
 
@@ -164,14 +297,19 @@ export default function SampleSignOut({ setMode }) {
 
         <button
           className="w-full text-xl py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"
-          onClick={() => {
-            window.open(
-              "https://docs.google.com/spreadsheets/d/1VMPWmQUbbHK0JE_8ldfsc2G454vVPkFnLhjATuVKil8/edit?gid=695013411#gid=695013411",
-              "_blank"
-            );
-          }}
+          onClick={() => setStep("return")}
         >
           Return Samples
+        </button>
+
+        <button
+          className="w-full text-xl py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"
+          onClick={() => {
+            setStep("outSamples");
+            loadActiveSamples();
+          }}
+        >
+          Samples Currently Out
         </button>
 
         <button
@@ -437,6 +575,226 @@ export default function SampleSignOut({ setMode }) {
             </div>
           )}
         </>
+      )}
+
+      {/* Return Step */}
+      {step === "return" && (
+        <div className="space-y-4">
+
+          <h1 className="text-2xl font-bold text-center">
+            Return Samples
+          </h1>
+
+          <button
+            className="bg-gray-500 text-white p-3 rounded-xl"
+            onClick={() => setReturnScannerOpen(true)}
+          >
+            Scan With Camera
+          </button>
+
+          <input
+            placeholder="Scan or Enter Barcode"
+            className="border p-3 w-full"
+            value={returnBarcode}
+            onChange={(e) =>
+              setReturnBarcode(e.target.value)
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                searchReturnBarcode();
+              }
+            }}
+          />
+
+          <button
+            className="bg-blue-600 text-white p-3 rounded-xl"
+            onClick={() => 
+              searchReturnBarcode(returnBarcode)
+            }
+          >
+            Search
+          </button>
+
+          <h3 className="font-bold">
+            Returning ({returnItems.length})
+          </h3>
+
+          {returnItems.map((item, i) => (
+            <div
+              key={item.id}
+              className="border p-4 rounded-xl"
+            >
+              <div className="flex justify-between gap-4">
+
+                <div>
+                  <div className="font-semibold">
+                    {item.sample_name_snapshot}
+                  </div>
+
+                  <div className="text-sm text-gray-500">
+                    Barcode: {item.barcode_snapshot}
+                  </div>
+
+                  <div className="mt-2">
+                    Customer: <strong>{item.customer_name}</strong>
+                  </div>
+
+                  <div>
+                    Phone: {item.cutomer_phone}
+                  </div>
+
+                  <div className="text-sm text-gray-500">
+                    Signed out:{" "}
+                    {new Date(
+                      item.signed_out_at
+                    ).toLocaleString()}
+                  </div>
+                </div>
+
+                <span
+                  className="text-red-500 cursor-pointer"
+                  onClick={() =>
+                    setReturnItems(prev =>
+                      prev.filter(
+                        (_, index) => index !== i
+                      )
+                    )
+                  }
+                >
+                  ✕
+                </span>
+
+              </div>
+            </div>
+          ))}
+
+          <button
+            className="w-full bg-green-600 text-white p-4 rounded-xl"
+            onClick={confirmReturns}
+          >
+            Confirm Returns
+          </button>
+
+          <button
+            className="w-full bg-gray-400 p-4 rounded-xl"
+            onClick={() => {
+              setReturnItems([]);
+              setReturnBarcode("");
+              setStep("signOutOptions");  
+            }}
+          >
+            Back
+          </button>
+
+          {returnScannerOpen && (
+            <ScannerModal
+              onClose={() =>
+                setReturnScannerOpen(false)
+              }
+              onSelect={(item) => {
+                const scannedCode =
+                  item.Barcode ||
+                  item.barcode ||
+                  item["Barcode"] ||
+                  item["Item Code"];
+                
+                if (!scannedCode) {
+                  alert("No barcode found");
+                  return;
+                }
+
+                setReturnScannerOpen(false);
+                searchReturnBarcode(scannedCode);
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Out Samples */}
+      {step === "outSamples" && (
+        <div className="space-y-4">
+
+          <h1 className="text-2xl font-bold text-center">
+            Samples Currently Out
+          </h1>
+
+          <input
+            placeholder="Search customer, phone, sample or barcode"
+            className="border p-3 w-full"
+            value={activeSearch}
+            onChange={(e) =>
+              setActiveSearch(e.target.value)
+            }
+          />
+
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl"
+            onClick={loadActiveSamples}
+          >
+            Refresh
+          </button>
+
+          {activeLoading && (
+            <p>Loading...</p>
+          )}
+
+          {!activeLoading && 
+            filteredActiveSamples.length === 0 && (
+              <p className="text-center text-gray-500">
+                No samples currently out.
+              </p>
+            )}
+
+          {filteredActiveSamples.map(item => (
+            <div
+              key={item.id}
+              className="border rounded-xl p-4"
+            >
+
+              <div className="font-bold text-lg">
+                {item.sample_name_snapshot}
+              </div>
+
+              <div className="text-sm text-gray-500">
+                Barcode: {item.barcode_snapshot}
+              </div>
+
+              <div className="mt-3">
+                Customer:{" "}
+                <strong>{item.customer_name}</strong>
+              </div>
+
+              <div>
+                Phone: {item.customer_phone}
+              </div>
+
+              <div>
+                Employee: {item.employee_name}
+              </div>
+
+              <div className="text-sm text-gray-500 mt-1">
+                Signed out:{" "}
+                {new Date(
+                  item.signed_out_at
+                ).toLocaleString()}
+              </div>
+
+            </div>
+          ))}
+
+          <button
+            className="w-full bg-gray-400 p-4 rounded-xl"
+            onClick={() => {
+              setActiveSearch("");
+              setStep("signOutOptions");
+            }}
+          >
+            Back
+          </button>
+
+        </div>
       )}
     </div>
   );
