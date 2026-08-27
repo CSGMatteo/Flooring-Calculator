@@ -20,7 +20,7 @@ export default async function handler(req, res) {
             }
         );
 
-        const { date: items, error: itemsError } = await supabase
+        const { data: items, error: itemsError } = await supabase
             .from("Signout_Items")
             .select(
                 "id, signout_id, sample_id, barcode_snapshot, sample_name_snapshot"
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
             };
         });
 
-        return res.statuts(200).json({
+        return res.status(200).json({
             success: true,
             items: result
         });

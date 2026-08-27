@@ -147,7 +147,7 @@ export default function SampleSignOut({ setMode }) {
   }
 
   async function confirmReturns() {
-    if (!returnedItems.length) {
+    if (!returnItems.length) {
       alert("No samples selected");
       return;
     }
@@ -161,7 +161,7 @@ export default function SampleSignOut({ setMode }) {
         },
 
         body: JSON.stringify({
-          itemsIds: returnItems.map(item => item.id)
+          itemIds: returnItems.map(item => item.id)
         })
       });
 
@@ -266,7 +266,7 @@ export default function SampleSignOut({ setMode }) {
       setCustomerInfo({
         name: "",
         number: "",
-        employe: ""
+        employee: ""
       });
 
       setMode("menu");
@@ -545,7 +545,7 @@ export default function SampleSignOut({ setMode }) {
                       }
 
                       const miscItem = {
-                        id: `misc-${crpyto.randomUUID()}`,
+                        id: `misc-${crypto.randomUUID()}`,
                         barcode: notFoundBarcode || "UNLISTED",
                         sample_name: miscDescription.trim(),
                         is_unlisted: true
@@ -641,7 +641,7 @@ export default function SampleSignOut({ setMode }) {
                   </div>
 
                   <div>
-                    Phone: {item.cutomer_phone}
+                    Phone: {item.customer_phone}
                   </div>
 
                   <div className="text-sm text-gray-500">

@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
     try {
         const supabase = createClient(
-            process.env.VITE_SUPABSE_URL,
+            process.env.VITE_SUPABASE_URL,
             process.env.SUPABASE_SECRET_KEY,
             {
                 auth: {

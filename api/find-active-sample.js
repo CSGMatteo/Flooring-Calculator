@@ -72,7 +72,7 @@ export default async function handler(req, res) {
 
         return res.status(200).json({
             success: true,
-            items: {
+            item: {
                 ...item,
                 customer_name: signout.customer_name,
                 customer_phone: signout.customer_phone,
