@@ -26,6 +26,14 @@ export default function SampleSignOut({ setMode }) {
   const [returnItems, setReturnItems] = useState([]);
   const [returnScannerOpen, setReturnScannerOpen] = useState(false);
 
+  const [returnCustomerSearch, setReturnCustomerSearch] = useState("");
+  const [returnCustomerResults, setReturnCustomerResults] = useState([]);
+
+  const [selectedReturnCustomer, setSelectedReturnCustomer] = useState(null);
+  const [selectedReturnIds, setSelectedReturnIds] = useState([]);
+
+  const [scanReturnMatches, setScanReturnMatches] = useState([]);
+
   const [activeSamples, setActiveSamples] = useState([]);
   const [activeLoading, setActiveLoading] = useState(false);
   const [activeSearch, setActiveSearch] = useState("")
@@ -44,6 +52,81 @@ export default function SampleSignOut({ setMode }) {
 
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAcdiYAZOqw4mZj7YX2gF1acPEfZh1aXBEx2YXuVsjPZOTrM9YVEp0WLNgQ3Eif5Dqcg/exec"
   
+
+  function addToReturnCart(item) {
+    setReturnItems(prev => {
+
+      const alreadyAdded = prev.some(
+        existing => existing.id === item.id
+      );
+
+      if (alreadyAdded) {
+        return prev;
+      }
+
+      return [...prev, item];
+    });
+  }
+
+  function toggleReturnSelection(id) {
+    setSelectedReturnIds(prev => {
+
+      if (prev.includes(id)) {
+        return prev.filter(
+          selectedId => selectedId !== id
+        );
+      }
+
+      return [...prev, id];
+    })
+  }
+
+  function addSelectedReturnsToCart() {
+    if (!selectedReturnCustomer) {
+      return;
+    }
+
+    const selectedItems = 
+      selectedReturnCustomer.items.filter(
+        item =>
+          selectedReturnIds.includes(item.id)
+      )
+      .map(item => ({
+        ...item,
+
+        // Carry customer information into the Return Cart
+        customer_name:
+          selectedReturnCustomer.customer_name,
+        
+        customer_phone:
+          selectedReturnCustomer.customer_phone
+      }));
+
+    if (!selectedItems.length) {
+      alert("Select at least one sample");
+      return;
+    }
+
+    setReturnItems(prev => {
+
+      const existingIds = new Set(
+        prev.map(item => item.id)
+      );
+
+      const newItems =
+        selectedItems.filter(
+          item => !existingIds.has(item.id)
+        );
+
+      return [
+        ...prev,
+        ...newItems
+      ];
+    });
+
+    setSelectedReturnIds([]);
+  }
+
   async function searchBarcode(forcedBarcode = null) {
     let code = forcedBarcode ?? barcode;
 
@@ -113,6 +196,8 @@ export default function SampleSignOut({ setMode }) {
       return
     }
 
+    setScanReturnMatches([]);
+
     try {
       const res = await fetch(
         `/api/find-active-sample?barcode=${encodeURIComponent(code)}`
@@ -126,23 +211,75 @@ export default function SampleSignOut({ setMode }) {
         return;
       }
 
-      setReturnItems(prev => {
-        const alreadyAdded = prev.some(
-          item => item.id === data.item.id
-        );
+      /*
+        Only one active copy:
+        just put it directly into cart
+      */
+      if (data.items.length === 1) {
 
-        if (alreadyAdded) {
-          return prev;
-        }
+        addToReturnCart(data.items[0]);
 
-        return [...prev, data.item];
-      });
+        setReturnBarcode("");
+        setScanReturnMatches([]);
+
+        return;
+      }
+
+      /*
+        More than one active checkout has this barcode.
+
+        Don't guess which one is being returned.
+        Let the employee choos
+      */
+
+      setScanReturnMatches(data.items);
 
       setReturnBarcode("");
 
     } catch (err) {
       console.error("RETURN LOOKUP ERROR:", err);
       alert("Error searching for returned sample");
+    }
+  }
+
+  async function searchReturnCustomer() {
+    const query = returnCustomerSearch.trim();
+
+    if (!query) {
+      alert("Enter a customer name");
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/search-return-customer?query=${encodeURIComponent(query)}`
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(
+          data.error ||
+          "Unable to search customers"
+        );
+      }
+
+      setReturnCustomerResults(
+        data.customers
+      );
+
+      setSelectedReturnCustomer(null);
+      setSelectedReturnIds([]);
+
+    } catch (err) {
+      console.error(
+        "CUSTOMER SEARCH ERROR:",
+        err
+      );
+
+      alert(
+        `Customer search failed: ${err.message}`
+      );
     }
   }
 
@@ -181,11 +318,20 @@ export default function SampleSignOut({ setMode }) {
 
       setReturnItems([]);
       setReturnBarcode("")
+
+      setReturnCustomerSearch("")
+      setReturnCustomerResults([]);
+
+      setSelectedReturnCustomer(null);
+      setSelectedReturnIds([]);
+
+      setScanReturnMatches([]);
+
       setStep("signOutOptions");
 
     } catch (err) {
       console.error("RETURN ERROR:", err);
-      alert(`Return faild: ${err.message}`);
+      alert(`Return failed: ${err.message}`);
     }
   }
 
@@ -576,58 +722,268 @@ export default function SampleSignOut({ setMode }) {
           )}
         </>
       )}
-
+      
       {/* Return Step */}
       {step === "return" && (
-        <div className="space-y-4">
+        <div className="space-y-6">
 
           <h1 className="text-2xl font-bold text-center">
             Return Samples
           </h1>
 
-          <button
-            className="bg-gray-500 text-white p-3 rounded-xl"
-            onClick={() => setReturnScannerOpen(true)}
-          >
-            Scan With Camera
-          </button>
 
-          <input
-            placeholder="Scan or Enter Barcode"
-            className="border p-3 w-full"
-            value={returnBarcode}
-            onChange={(e) =>
-              setReturnBarcode(e.target.value)
-            }
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                searchReturnBarcode();
+          {/* ========================= */}
+          {/* CUSTOMER LOOKUP */}
+          {/* ========================= */}
+
+          <div className="border rounded-xl p-4 space-y-3">
+
+            <h2 className="font-bold text-lg">
+              Find Customer
+            </h2>
+
+            <input
+              placeholder="Enter Customer Name"
+              className="border p-3 w-full"
+              value={returnCustomerSearch}
+              onChange={(e) =>
+                setReturnCustomerSearch(
+                  e.target.value
+                )
               }
-            }}
-          />
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  searchReturnCustomer();
+                }
+              }}
+            />
 
-          <button
-            className="bg-blue-600 text-white p-3 rounded-xl"
-            onClick={() => 
-              searchReturnBarcode(returnBarcode)
-            }
-          >
-            Search
-          </button>
-
-          <h3 className="font-bold">
-            Returning ({returnItems.length})
-          </h3>
-
-          {returnItems.map((item, i) => (
-            <div
-              key={item.id}
-              className="border p-4 rounded-xl"
+            <button
+              className="bg-blue-600 text-white p-3 rounded-xl"
+              onClick={searchReturnCustomer}
             >
-              <div className="flex justify-between gap-4">
+              Search Customer
+            </button>
+
+          </div>
+
+
+          {/* ========================= */}
+          {/* CUSTOMER SEARCH RESULTS */}
+          {/* ========================= */}
+
+          {!selectedReturnCustomer &&
+            returnCustomerResults.map(
+              (customer, i) => (
+
+                <div
+                  key={i}
+                  className="border rounded-xl p-4"
+                >
+
+                  <div className="font-bold text-lg">
+                    {customer.customer_name}
+                  </div>
+
+                  <div>
+                    {customer.customer_phone}
+                  </div>
+
+                  <div className="text-gray-500 mt-1">
+                    {customer.items.length} sample
+                    {customer.items.length === 1
+                      ? ""
+                      : "s"}{" "}
+                    currently out
+                  </div>
+
+                  <button
+                    className="mt-3 bg-blue-600 text-white px-4 py-2 rounded-xl"
+                    onClick={() => {
+                      setSelectedReturnCustomer(
+                        customer
+                      );
+
+                      setSelectedReturnIds([]);
+                    }}
+                  >
+                    View Samples
+                  </button>
+
+                </div>
+              )
+            )}
+
+
+          {/* ========================= */}
+          {/* SELECTED CUSTOMER SAMPLES */}
+          {/* ========================= */}
+
+          {selectedReturnCustomer && (
+
+            <div className="border rounded-xl p-4 space-y-3">
+
+              <div>
+
+                <div className="font-bold text-xl">
+                  {selectedReturnCustomer.customer_name}
+                </div>
 
                 <div>
+                  {selectedReturnCustomer.customer_phone}
+                </div>
+
+              </div>
+
+              {selectedReturnCustomer.items.map(
+                item => (
+
+                  <label
+                    key={item.id}
+                    className="flex items-start gap-3 border rounded-xl p-3 cursor-pointer"
+                  >
+
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedReturnIds.includes(
+                          item.id
+                        )
+                      }
+                      onChange={() =>
+                        toggleReturnSelection(
+                          item.id
+                        )
+                      }
+                    />
+
+                    <div>
+
+                      <div className="font-semibold">
+                        {item.sample_name_snapshot}
+                      </div>
+
+                      <div className="text-sm text-gray-500">
+                        Barcode:{" "}
+                        {item.barcode_snapshot}
+                      </div>
+
+                      <div className="text-sm text-gray-500">
+                        Signed out:{" "}
+                        {new Date(
+                          item.signed_out_at
+                        ).toLocaleString()}
+                      </div>
+
+                    </div>
+
+                  </label>
+                )
+              )}
+
+              <div className="flex gap-3">
+
+                <button
+                  className="flex-1 bg-green-600 text-white p-3 rounded-xl"
+                  onClick={addSelectedReturnsToCart}
+                >
+                  Add Selected to Return Cart
+                </button>
+
+                <button
+                  className="bg-gray-400 px-4 py-3 rounded-xl"
+                  onClick={() => {
+                    setSelectedReturnCustomer(null);
+                    setSelectedReturnIds([]);
+                  }}
+                >
+                  Back
+                </button>
+
+              </div>
+
+            </div>
+          )}
+
+
+          {/* ========================= */}
+          {/* BARCODE LOOKUP */}
+          {/* ========================= */}
+
+          <div className="border-t pt-5 space-y-3">
+
+            <h2 className="font-bold text-lg">
+              Or Scan a Sample
+            </h2>
+
+            <p className="text-sm text-gray-500">
+              Scan the barcode or enter it manually.
+            </p>
+
+            <input
+              placeholder="Scan or Enter Barcode"
+              className="border p-3 w-full"
+              value={returnBarcode}
+              onChange={(e) =>
+                setReturnBarcode(e.target.value)
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  searchReturnBarcode();
+                }
+              }}
+            />
+
+            <div className="flex gap-3">
+
+              <button
+                className="flex-1 bg-blue-600 text-white p-3 rounded-xl"
+                onClick={() =>
+                  searchReturnBarcode(returnBarcode)
+                }
+              >
+                Search Barcode
+              </button>
+
+              <button
+                className="flex-1 bg-gray-500 text-white p-3 rounded-xl"
+                onClick={() =>
+                  setReturnScannerOpen(true)
+                }
+              >
+                Scan With Camera
+              </button>
+
+            </div>
+
+          </div>
+
+
+          {/* ========================= */}
+          {/* MULTIPLE BARCODE MATCHES */}
+          {/* ========================= */}
+
+          {scanReturnMatches.length > 1 && (
+
+            <div className="border border-yellow-400 bg-yellow-50 rounded-xl p-4 space-y-3">
+
+              <h3 className="font-bold">
+                Multiple Copies Are Currently Out
+              </h3>
+
+              <p>
+                Select the customer returning this sample:
+              </p>
+
+              {scanReturnMatches.map(item => (
+
+                <div
+                  key={item.id}
+                  className="border bg-white rounded-xl p-3"
+                >
+
                   <div className="font-semibold">
                     {item.sample_name_snapshot}
                   </div>
@@ -637,7 +993,10 @@ export default function SampleSignOut({ setMode }) {
                   </div>
 
                   <div className="mt-2">
-                    Customer: <strong>{item.customer_name}</strong>
+                    Customer:{" "}
+                    <strong>
+                      {item.customer_name}
+                    </strong>
                   </div>
 
                   <div>
@@ -650,24 +1009,109 @@ export default function SampleSignOut({ setMode }) {
                       item.signed_out_at
                     ).toLocaleString()}
                   </div>
+
+                  <button
+                    className="mt-3 bg-green-600 text-white px-4 py-2 rounded-xl"
+                    onClick={() => {
+
+                      addToReturnCart(item);
+
+                      setScanReturnMatches([]);
+                    }}
+                  >
+                    Add This Return
+                  </button>
+
                 </div>
 
-                <span
-                  className="text-red-500 cursor-pointer"
-                  onClick={() =>
-                    setReturnItems(prev =>
-                      prev.filter(
-                        (_, index) => index !== i
+              ))}
+
+            </div>
+
+          )}
+
+
+          {/* ========================= */}
+          {/* RETURN CART */}
+          {/* ========================= */}
+
+          <div className="border-t pt-5 space-y-3">
+
+            <h3 className="font-bold text-lg">
+              Return Cart ({returnItems.length})
+            </h3>
+
+            {returnItems.length === 0 && (
+              <p className="text-gray-500">
+                No samples have been added for return.
+              </p>
+            )}
+
+            {returnItems.map((item, i) => (
+
+              <div
+                key={item.id}
+                className="border p-4 rounded-xl"
+              >
+
+                <div className="flex justify-between gap-4">
+
+                  <div>
+
+                    <div className="font-semibold">
+                      {item.sample_name_snapshot}
+                    </div>
+
+                    <div className="text-sm text-gray-500">
+                      Barcode: {item.barcode_snapshot}
+                    </div>
+
+                    <div className="mt-2">
+                      Customer:{" "}
+                      <strong>
+                        {item.customer_name}
+                      </strong>
+                    </div>
+
+                    <div>
+                      Phone: {item.customer_phone}
+                    </div>
+
+                    <div className="text-sm text-gray-500">
+                      Signed out:{" "}
+                      {new Date(
+                        item.signed_out_at
+                      ).toLocaleString()}
+                    </div>
+
+                  </div>
+
+                  <span
+                    className="text-red-500 cursor-pointer"
+                    onClick={() =>
+                      setReturnItems(prev =>
+                        prev.filter(
+                          (_, index) =>
+                            index !== i
+                        )
                       )
-                    )
-                  }
-                >
-                  ✕
-                </span>
+                    }
+                  >
+                    ✕
+                  </span>
+
+                </div>
 
               </div>
-            </div>
-          ))}
+
+            ))}
+
+          </div>
+
+
+          {/* ========================= */}
+          {/* RETURN BUTTONS */}
+          {/* ========================= */}
 
           <button
             className="w-full bg-green-600 text-white p-4 rounded-xl"
@@ -679,36 +1123,60 @@ export default function SampleSignOut({ setMode }) {
           <button
             className="w-full bg-gray-400 p-4 rounded-xl"
             onClick={() => {
+
               setReturnItems([]);
               setReturnBarcode("");
-              setStep("signOutOptions");  
+
+              setReturnCustomerSearch("");
+              setReturnCustomerResults([]);
+
+              setSelectedReturnCustomer(null);
+              setSelectedReturnIds([]);
+
+              setScanReturnMatches([]);
+
+              setReturnScannerOpen(false);
+
+              setStep("signOutOptions");
             }}
           >
             Back
           </button>
 
+
+          {/* ========================= */}
+          {/* CAMERA SCANNER */}
+          {/* ========================= */}
+
           {returnScannerOpen && (
+
             <ScannerModal
               onClose={() =>
                 setReturnScannerOpen(false)
               }
               onSelect={(item) => {
+
                 const scannedCode =
                   item.Barcode ||
                   item.barcode ||
                   item["Barcode"] ||
                   item["Item Code"];
-                
+
                 if (!scannedCode) {
                   alert("No barcode found");
                   return;
                 }
 
                 setReturnScannerOpen(false);
-                searchReturnBarcode(scannedCode);
+
+                searchReturnBarcode(
+                  scannedCode
+                );
               }}
             />
+
           )}
+
         </div>
       )}
 

@@ -29,14 +29,14 @@ export default async function handler(req, res) {
             });
         }
 
+        // Find EVERY active checkout using this barcode
         const { data: items, error: itemError } = await supabase
             .from("Signout_Items")
             .select(
                 "id, signout_id, sample_id, barcode_snapshot, sample_name_snapshot, returned_at"
             )
             .eq("barcode_snapshot", barcode)
-            .is("returned_at", null)
-            .limit(2);
+            .is("returned_at", null);
 
         if (itemError) {
             throw itemError;
@@ -49,36 +49,41 @@ export default async function handler(req, res) {
             });
         }
 
-        if (items.length > 1) {
-            return res.status(409).json({
-                success: false,
-                error: "Multiple active sign-outs were found for this barcode"
-            });
-        }
+        // Get all related signout/customer records
+        const signoutIds = [
+            ...new Set(items.map(item => item.signout_id))
+        ];
 
-        const item = items[0];
-
-        const { data: signout, error: signoutError } = await supabase
+        const { data: signouts, error: signoutError } = await supabase
             .from("Signouts")
             .select(
                 "id, customer_name, customer_phone, employee_name, signed_out_at"
             )
-            .eq("id", item.signout_id)
-            .single();
+            .in("id", signoutIds);
 
         if (signoutError) {
             throw signoutError;
         }
 
+        const signoutMap = new Map(
+            signouts.map(signout => [signout.id, signout])
+        );
+
+        const result = items.map(item => {
+            const signout = signoutMap.get(item.signout_id);
+
+            return {
+                ...item,
+                customer_name: signout?.customer_name || "",
+                customer_phone: signout?.customer_phone || "",
+                employee_name: signout?.employee_name || "",
+                signed_out_at: signout?.signed_out_at || null
+            };
+        })
+
         return res.status(200).json({
             success: true,
-            item: {
-                ...item,
-                customer_name: signout.customer_name,
-                customer_phone: signout.customer_phone,
-                employee_name: signout.employee_name,
-                signed_out_at: signout.signed_out_at
-            }
+            items: result
         });
 
     } catch (err) {
