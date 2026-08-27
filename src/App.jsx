@@ -70,8 +70,8 @@ export default function App() {
 
       {mode === "mainMenu" && (
         <>
-        <div className="bg-white rounded-2xl shadow-xl p-10 text-center space-y-6">
-          <h1 className="text-3xl font-bold text-center">
+        <div className="bg-black rounded-2xl shadow-xl p-10 text-center space-y-6">
+          <h1 className="text-3xl text-white font-bold text-center">
             MAIN MENU
           </h1>
 
@@ -115,8 +115,8 @@ export default function App() {
 
       {mode === "calculations" && (
         <>
-        <div className="bg-white rounded-2xl shadow-xl p-10 text-center space-y-6">
-          <h1 className="text-3xl font-bold text-center">
+        <div className="bg-black rounded-2xl shadow-xl p-10 text-center space-y-6">
+          <h1 className="text-3xl text-white font-bold text-center">
             What Would You Like To Calculate?
           </h1>
 

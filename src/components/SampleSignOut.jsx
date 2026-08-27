@@ -49,10 +49,7 @@ export default function SampleSignOut({ setMode }) {
       item.barcode_snapshot?.toLowerCase().includes(search)
     );
   });
-
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAcdiYAZOqw4mZj7YX2gF1acPEfZh1aXBEx2YXuVsjPZOTrM9YVEp0WLNgQ3Eif5Dqcg/exec"
   
-
   function addToReturnCart(item) {
     setReturnItems(prev => {
 
@@ -428,7 +425,7 @@ export default function SampleSignOut({ setMode }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-10 space-y-6">
+    <div className="bg-[#111111] text-white rounded-2xl shadow-xl p-10 space-y-6">
 
       {step === "signOutOptions" && (
       <div className="space-y-6">
@@ -475,7 +472,17 @@ export default function SampleSignOut({ setMode }) {
 
           <input
             placeholder="Customer Name"
-            className="border p-3 w-full"
+            className="
+              w-full
+              border border-[#888888]
+              bg-[#3A3A3A]
+              text-white
+              placeholder:text-[#AAB7CA]
+              p-4
+              rounded-none
+              outline-none
+              focus:border-white
+            "
             onChange={(e) =>
               setCustomerInfo(prev => ({ ...prev, name: e.target.value }))
             }
@@ -483,7 +490,17 @@ export default function SampleSignOut({ setMode }) {
 
           <input
             placeholder="Customer Number"
-            className="border p-3 w-full"
+            className="
+              w-full
+              border border-[#888888]
+              bg-[#3A3A3A]
+              text-white
+              placeholder:text-[#AAB7CA]
+              p-4
+              rounded-none
+              outline-none
+              focus:border-white
+            "
             onChange={(e) =>
               setCustomerInfo(prev => ({ ...prev, number: e.target.value }))
             }
@@ -491,14 +508,33 @@ export default function SampleSignOut({ setMode }) {
 
           <input
             placeholder="Employee Name"
-            className="border p-3 w-full"
+            className="
+              w-full
+              border border-[#888888]
+              bg-[#3A3A3A]
+              text-white
+              placeholder:text-[#AAB7CA]
+              p-4
+              rounded-none
+              outline-none
+              focus:border-white
+            "
             onChange={(e) =>
               setCustomerInfo(prev => ({ ...prev, employee: e.target.value }))
             }
           />
 
           <button
-            className="w-full bg-blue-600 text-white p-4 rounded-xl"
+            className="
+              w-full
+              bg-[#2F6CE5]
+              hover:bg-[#255CC7]
+              text-white
+              p-4
+              rounded-xl
+              border border-white
+              transition
+            "
             onClick={() => {
               if (!customerInfo.name || !customerInfo.number || !customerInfo.employee) {
                 alert("Fill all fields");
@@ -512,7 +548,15 @@ export default function SampleSignOut({ setMode }) {
           </button>
 
           <button
-            className="w-full bg-gray-400 p-4 rounded-xl"
+            className="
+              w-full
+              bg-gray-600
+              hover:bg-gray-700
+              text-white
+              p-4
+              rounded-xl
+              transition
+            "
             onClick={() => setMode("mainMenu")}
           >
             Back
@@ -534,7 +578,17 @@ export default function SampleSignOut({ setMode }) {
 
           <input
             placeholder="Enter Barcode"
-            className="border p-3 w-full"
+            className="
+              w-full
+              border border-[#888888]
+              bg-[#3A3A3A]
+              text-white
+              placeholder:text-[#AAB7CA]
+              p-4
+              rounded-none
+              outline-none
+              focus:border-white
+            "
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
             onKeyDown={(e) => {
@@ -546,7 +600,7 @@ export default function SampleSignOut({ setMode }) {
           />
 
           {notFoundBarcode && (
-            <div className="border border-red-300 bg-red-50 p-4 rounded-xl space-y-3">
+            <div className="border border-red-700 bg-red-950/40 text-red-100 p-4 rounded-xl space-y-3">
               <p className="font-semibold">
                 Barcode {notFoundBarcode} was not found.
               </p>
@@ -559,7 +613,7 @@ export default function SampleSignOut({ setMode }) {
               </button>
 
               <button
-                className="bg-gray-400 px-4 py-2 rounded-xl ml-2"
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-xl ml-2"
                 onClick={() => setNotFoundBarcode("")}
               >
                 Cancel
@@ -605,7 +659,7 @@ export default function SampleSignOut({ setMode }) {
               <div>
                 <div>{item.sample_name}</div>
 
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-400">
                   Barcode: {item.barcode}
                 </div>
               </div>
@@ -623,14 +677,14 @@ export default function SampleSignOut({ setMode }) {
           ))}
 
           <button
-            className="w-full bg-green-600 text-white p-4 rounded-xl"
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white p-4 rounded-xl"
             onClick={signOut}
           >
             Sign Out
           </button>
 
           <button
-            className="w-full bg-gray-400 p-4 rounded-xl"
+            className="w-full bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-xl"
             onClick={() => setStep("info")}
           >
             Back
@@ -660,7 +714,7 @@ export default function SampleSignOut({ setMode }) {
 
           {miscOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+              <div className="w-full max-w-md rounded-2xl bg-[#202020] text-white border border-[#555555] p-6 shadow-2xl space-y-4">
 
                 <h3 className="text-xl font-bold text-center">
                   Add Unlisted Sample
@@ -675,7 +729,17 @@ export default function SampleSignOut({ setMode }) {
                 <input
                   type="text"
                   placeholder="Enter Sample Description"
-                  className="border p-3 w-full rounded"
+                  className="
+                    w-full
+                    border border-[#888888]
+                    bg-[#3A3A3A]
+                    text-white
+                    placeholder:text-[#AAB7CA]
+                    p-4
+                    rounded-none
+                    outline-none
+                    focus:border-white
+                  "
                   value={miscDescription}
                   onChange={(e) => setMiscDescription(e.target.value)}
                   autoFocus
@@ -709,7 +773,7 @@ export default function SampleSignOut({ setMode }) {
                   </button>
 
                   <button
-                    className="flex-1 bg-gray-400 px-4 py-2 rounded-xl ml-2"
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-xl ml-2"
                     onClick={() => {
                       setMiscDescription("");
                       setMiscOpen(false);
@@ -745,7 +809,17 @@ export default function SampleSignOut({ setMode }) {
 
             <input
               placeholder="Enter Customer Name"
-              className="border p-3 w-full"
+              className="
+                w-full
+                border border-[#888888]
+                bg-[#3A3A3A]
+                text-white
+                placeholder:text-[#AAB7CA]
+                p-4
+                rounded-none
+                outline-none
+                focus:border-white
+              "
               value={returnCustomerSearch}
               onChange={(e) =>
                 setReturnCustomerSearch(
@@ -791,7 +865,7 @@ export default function SampleSignOut({ setMode }) {
                     {customer.customer_phone}
                   </div>
 
-                  <div className="text-gray-500 mt-1">
+                  <div className="text-gray-400 mt-1">
                     {customer.items.length} sample
                     {customer.items.length === 1
                       ? ""
@@ -865,12 +939,12 @@ export default function SampleSignOut({ setMode }) {
                         {item.sample_name_snapshot}
                       </div>
 
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-400">
                         Barcode:{" "}
                         {item.barcode_snapshot}
                       </div>
 
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-400">
                         Signed out:{" "}
                         {new Date(
                           item.signed_out_at
@@ -893,7 +967,7 @@ export default function SampleSignOut({ setMode }) {
                 </button>
 
                 <button
-                  className="bg-gray-400 px-4 py-3 rounded-xl"
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-xl"
                   onClick={() => {
                     setSelectedReturnCustomer(null);
                     setSelectedReturnIds([]);
@@ -918,13 +992,23 @@ export default function SampleSignOut({ setMode }) {
               Or Scan a Sample
             </h2>
 
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-400">
               Scan the barcode or enter it manually.
             </p>
 
             <input
               placeholder="Scan or Enter Barcode"
-              className="border p-3 w-full"
+              className="
+                w-full
+                border border-[#888888]
+                bg-[#3A3A3A]
+                text-white
+                placeholder:text-[#AAB7CA]
+                p-4
+                rounded-none
+                outline-none
+                focus:border-white
+              "
               value={returnBarcode}
               onChange={(e) =>
                 setReturnBarcode(e.target.value)
@@ -968,7 +1052,7 @@ export default function SampleSignOut({ setMode }) {
 
           {scanReturnMatches.length > 1 && (
 
-            <div className="border border-yellow-400 bg-yellow-50 rounded-xl p-4 space-y-3">
+            <div className="border border-yellow-600 bg-yellow-950/40 text-white rounded-xl p-4 space-y-3">
 
               <h3 className="font-bold">
                 Multiple Copies Are Currently Out
@@ -982,14 +1066,14 @@ export default function SampleSignOut({ setMode }) {
 
                 <div
                   key={item.id}
-                  className="border bg-white rounded-xl p-3"
+                  className="border border-[#555555] bg-[#202020] rounded-xl p-3"
                 >
 
                   <div className="font-semibold">
                     {item.sample_name_snapshot}
                   </div>
 
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-400">
                     Barcode: {item.barcode_snapshot}
                   </div>
 
@@ -1004,7 +1088,7 @@ export default function SampleSignOut({ setMode }) {
                     Phone: {item.customer_phone}
                   </div>
 
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-400">
                     Signed out:{" "}
                     {new Date(
                       item.signed_out_at
@@ -1043,7 +1127,7 @@ export default function SampleSignOut({ setMode }) {
             </h3>
 
             {returnItems.length === 0 && (
-              <p className="text-gray-500">
+              <p className="text-gray-400">
                 No samples have been added for return.
               </p>
             )}
@@ -1063,7 +1147,7 @@ export default function SampleSignOut({ setMode }) {
                       {item.sample_name_snapshot}
                     </div>
 
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-400">
                       Barcode: {item.barcode_snapshot}
                     </div>
 
@@ -1078,7 +1162,7 @@ export default function SampleSignOut({ setMode }) {
                       Phone: {item.customer_phone}
                     </div>
 
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-400">
                       Signed out:{" "}
                       {new Date(
                         item.signed_out_at
@@ -1122,7 +1206,7 @@ export default function SampleSignOut({ setMode }) {
           </button>
 
           <button
-            className="w-full bg-gray-400 p-4 rounded-xl"
+            className="w-full bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-xl"
             onClick={() => {
 
               setReturnItems([]);
@@ -1191,7 +1275,17 @@ export default function SampleSignOut({ setMode }) {
 
           <input
             placeholder="Search customer, phone, sample or barcode"
-            className="border p-3 w-full"
+            className="
+              w-full
+              border border-[#888888]
+              bg-[#3A3A3A]
+              text-white
+              placeholder:text-[#AAB7CA]
+              p-4
+              rounded-none
+              outline-none
+              focus:border-white
+            "
             value={activeSearch}
             onChange={(e) =>
               setActiveSearch(e.target.value)
@@ -1211,7 +1305,7 @@ export default function SampleSignOut({ setMode }) {
 
           {!activeLoading && 
             filteredActiveSamples.length === 0 && (
-              <p className="text-center text-gray-500">
+              <p className="text-center text-gray-400">
                 No samples currently out.
               </p>
             )}
@@ -1226,7 +1320,7 @@ export default function SampleSignOut({ setMode }) {
                 {item.sample_name_snapshot}
               </div>
 
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-400">
                 Barcode: {item.barcode_snapshot}
               </div>
 
@@ -1243,7 +1337,7 @@ export default function SampleSignOut({ setMode }) {
                 Employee: {item.employee_name}
               </div>
 
-              <div className="text-sm text-gray-500 mt-1">
+              <div className="text-sm text-gray-400 mt-1">
                 Signed out:{" "}
                 {new Date(
                   item.signed_out_at
@@ -1254,7 +1348,7 @@ export default function SampleSignOut({ setMode }) {
           ))}
 
           <button
-            className="w-full bg-gray-400 p-4 rounded-xl"
+            className="w-full bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-xl"
             onClick={() => {
               setActiveSearch("");
               setStep("signOutOptions");
