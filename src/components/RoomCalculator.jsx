@@ -35,7 +35,7 @@ export default function RoomCalculator({ setMode }) {
     const [scannedItem, setScannedItem] = useState(null)
 
     function resetRoom() {
-        setMode("menu");
+        setMode("mainMenu");
     }
 
     function roomCheck(){

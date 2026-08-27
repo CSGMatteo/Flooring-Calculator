@@ -289,7 +289,7 @@ export default function StairCalculator({ setMode }) {
     }
 
     function resetStairs() {
-        setMode("menu");
+        setMode("mainMenu");
         setLanding(false);
         setLandingSize({ w: 0, h: 0 });
         setCost(null);

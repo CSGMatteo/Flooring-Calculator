@@ -125,6 +125,7 @@ export default function SampleSignOut({ setMode }) {
     });
 
     setSelectedReturnIds([]);
+    setSelectedReturnCustomer(null);
   }
 
   async function searchBarcode(forcedBarcode = null) {
@@ -415,7 +416,7 @@ export default function SampleSignOut({ setMode }) {
         employee: ""
       });
 
-      setMode("menu");
+      setMode("mainMenu");
 
     } catch (err) {
       console.error("SIGN OUT ERROR:", err);
@@ -435,14 +436,14 @@ export default function SampleSignOut({ setMode }) {
           Returning or Signing Out?
         </h1>
         <button
-          className="w-full text-xl py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"
+          className="w-full text-xl py-6 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold transition"
           onClick={() => setStep("info")}
         >
           Sign Out Samples
         </button>
 
         <button
-          className="w-full text-xl py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"
+          className="w-full text-xl py-6 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition"
           onClick={() => setStep("return")}
         >
           Return Samples
@@ -459,8 +460,8 @@ export default function SampleSignOut({ setMode }) {
         </button>
 
         <button
-          className="w-full text-xl py-6 bg-gray-400 hover:bg-gray-500 text-black rounded-xl font-semibold transition"
-          onClick={() => setMode("menu")}
+          className="w-full text-xl py-6 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-semibold transition"
+          onClick={() => setMode("mainMenu")}
         >
           Main Menu
         </button>
@@ -512,7 +513,7 @@ export default function SampleSignOut({ setMode }) {
 
           <button
             className="w-full bg-gray-400 p-4 rounded-xl"
-            onClick={() => setMode("menu")}
+            onClick={() => setMode("mainMenu")}
           >
             Back
           </button>

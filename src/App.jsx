@@ -16,7 +16,7 @@ import HardwoodRoom from "./components/RoomCalculators/HardwoodRoom.jsx";
 
 export default function App() {
   
-  const [mode, setMode] = useState("menu");
+  const [mode, setMode] = useState("mainMenu");
   const [step, setStep] = useState("main");
  
   const formatMoney = (value) =>
@@ -26,7 +26,8 @@ export default function App() {
     });
 
   const backgrounds = {
-    menu: "bg-gradient-to-br from-blue-500 to-indigo-700",
+    mainMenu: "bg-gradient-to-br from-blue-500 to-yellow-500",
+    calculations: "bg-gradient-to-br from-blue-500 to-indigo-700",
     stairs: "bg-gradient-to-br from-cyan-500 to-indigo-700",
     maintenance: "bg-gradient-to-br from-amber-400 to-orange-600",
     rooms: "bg-gradient-to-br from-cyan-500 to-indigo-700",
@@ -59,7 +60,7 @@ export default function App() {
 
 
   function resetApp() {
-  setMode("menu")
+  setMode("mainMenu")
   setStep("main");
 }
 
@@ -67,7 +68,52 @@ export default function App() {
   <div className={`min-h-screen flex items-center justify-center ${backgroundClass} animate-gradient`}>
     <div className="w-full max-w-3xl">
 
-      {mode === "menu" && (
+      {mode === "mainMenu" && (
+        <>
+        <div className="bg-white rounded-2xl shadow-xl p-10 text-center space-y-6">
+          <h1 className="text-3xl font-bold text-center">
+            MAIN MENU
+          </h1>
+
+          <button
+            className="w-full text-xl py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"
+            onClick={() => {
+              setMode("calculations")
+            }}
+          >
+            Calculations
+          </button>
+
+          <button
+            className="w-full text-xl py-6 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold transition"
+            onClick={() => {
+              setMode("sampleSignOut")
+            }}
+          >
+            Sample Signout/Return
+          </button>
+
+          <button
+            className="w-full text-xl py-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition"
+            onClick={() => setScannerOpen(true)}
+          >
+            Scan Product
+          </button>
+
+        </div>
+        {scannerOpen && (
+          <ScannerModal
+           onClose={() => setScannerOpen(false)}
+           onSelect={(item) => {
+            setScannedItem(item);
+            setScannerOpen(false);
+           }}
+          />
+        )}
+        </>
+      )}
+
+      {mode === "calculations" && (
         <>
         <div className="bg-white rounded-2xl shadow-xl p-10 text-center space-y-6">
           <h1 className="text-3xl font-bold text-center">
@@ -103,31 +149,14 @@ export default function App() {
           </button>
 
           <button
-            className="w-full text-xl py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"
+            className="w-full text-xl py-6 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-semibold transition"
             onClick={() => {
-              console.log("CLICK WORKS")
-              setMode("sampleSignOut")
+              setMode("mainMenu")
             }}
           >
-            Sample Sign Out
-          </button>
-
-          <button
-            className="w-full text-xl py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"
-            onClick={() => setScannerOpen(true)}
-          >
-            Scan Product
+            Back
           </button>
         </div>
-        {scannerOpen && (
-          <ScannerModal
-           onClose={() => setScannerOpen(false)}
-           onSelect={(item) => {
-            setScannedItem(item);
-            setScannerOpen(false);
-           }}
-          />
-        )}
         </>
       )}
 
