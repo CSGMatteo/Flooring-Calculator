@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 
-
-const SHEET_VIEW_URL =
-  "https://docs.google.com/spreadsheets/d/1VMPWmQUbbHK0JE_8ldfsc2G454vVPkFnLhjATuVKil8/edit?gid=0#gid=0";
-
-
 export default function ScannerModal({
   onClose,
   onSelect,
@@ -729,13 +724,6 @@ export default function ScannerModal({
   }
 
 
-  /* =========================================================
-     OLD SPREADSHEET BUTTON
-  ========================================================= */
-
-  function openSpreadsheet() {
-    window.open(SHEET_VIEW_URL, "_blank");
-  }
 
 
   /* =========================================================
@@ -1656,21 +1644,6 @@ export default function ScannerModal({
           gap-3
           mt-5
         ">
-
-          <button
-            className="
-              flex-1
-              py-3
-              bg-blue-600
-              hover:bg-blue-700
-              rounded-xl
-              font-semibold
-              transition
-            "
-            onClick={openSpreadsheet}
-          >
-            Open Spreadsheet
-          </button>
 
 
           <button
