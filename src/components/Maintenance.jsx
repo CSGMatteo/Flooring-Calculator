@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-export default function Maintenance({ onBack }) {
+export default function Maintenance({ setMode }) {
 
   
     return (
@@ -11,7 +11,7 @@ export default function Maintenance({ onBack }) {
 
                     <button
                         className="w-full text-xl py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"
-                        onClick={onBack}
+                        onClick={() => setMode("mainMenu")}
                     >
                         Main Menu
                     </button>

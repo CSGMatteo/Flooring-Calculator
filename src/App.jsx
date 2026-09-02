@@ -97,12 +97,13 @@ export default function App() {
             className="w-full text-xl py-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition"
             onClick={() => setScannerOpen(true)}
           >
-            Scan Product
+            Price Checker
           </button>
 
         </div>
         {scannerOpen && (
           <ScannerModal
+           mode="price"
            onClose={() => setScannerOpen(false)}
            onSelect={(item) => {
             setScannedItem(item);
@@ -169,8 +170,7 @@ export default function App() {
       )}
 
       {mode === "maintenance" && (
-        <Maintenance 
-          onBack={() => setMode("menu")} />
+        <Maintenance setMode={setMode} />
       )}
 
       {mode === "rooms" && (

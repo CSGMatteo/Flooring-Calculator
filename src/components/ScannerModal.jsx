@@ -6,12 +6,13 @@ const SHEET_VIEW_URL =
   "https://docs.google.com/spreadsheets/d/1VMPWmQUbbHK0JE_8ldfsc2G454vVPkFnLhjATuVKil8/edit?gid=0#gid=0";
 
 
-export default function ScannerModal({ onClose, onSelect }) {
+export default function ScannerModal({
+  onClose,
+  onSelect,
+  mode = "select",
+}) {
   const videoRef = useRef(null);
   const searchInputRef = useRef(null);
-
-  // Stops the camera from reading the same barcode several times
-  // before React has time to update its state.
   const scanLockRef = useRef(false);
 
   const [scanLocked, setScanLocked] = useState(false);
@@ -21,14 +22,15 @@ export default function ScannerModal({ onClose, onSelect }) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Used only when mode === "price"
+  const [savedItems, setSavedItems] = useState([]);
+
 
   /* =========================================================
      INITIAL FOCUS
   ========================================================= */
 
   useEffect(() => {
-    // When the price checker opens, immediately focus the
-    // search box so a physical barcode scanner can type into it.
     setTimeout(() => {
       searchInputRef.current?.focus();
     }, 100);
@@ -60,14 +62,6 @@ export default function ScannerModal({ onClose, onSelect }) {
       return false;
     }
 
-    /*
-      Because Supabase dates use YYYY-MM-DD, these strings can
-      safely be compared directly.
-
-      Example:
-
-      2026-09-15 <= 2026-09-30
-    */
     return getTodayString() <= item.sale_end_date;
   }
 
@@ -106,11 +100,6 @@ export default function ScannerModal({ onClose, onSelect }) {
   function formatDate(dateString) {
     if (!dateString) return "";
 
-    /*
-      Adding T00:00:00 prevents JavaScript from treating the
-      Supabase date as UTC and potentially displaying the
-      previous calendar day.
-    */
     const date = new Date(`${dateString}T00:00:00`);
 
     return date.toLocaleDateString("en-CA", {
@@ -134,19 +123,13 @@ export default function ScannerModal({ onClose, onSelect }) {
 
 
   /* =========================================================
-     LOOK UP ONE BARCODE
+     LOOK UP BARCODE
   ========================================================= */
 
   async function getSampleByBarcode(code) {
     const cleanCode = String(code).trim();
 
 
-    /*
-      FIRST:
-      Find the physical sample itself.
-
-      Samples.active controls whether the ENTIRE sample is active.
-    */
     const { data: sample, error: sampleError } = await supabase
       .from("Samples")
       .select(`
@@ -175,12 +158,6 @@ export default function ScannerModal({ onClose, onSelect }) {
     }
 
 
-    /*
-      SECOND:
-      Get every ACTIVE price variant belonging to the barcode.
-
-      Having the same barcode multiple times here is intentional.
-    */
     const { data: variants, error: variantError } = await supabase
       .from("Sample_Variants")
       .select(`
@@ -227,18 +204,11 @@ export default function ScannerModal({ onClose, onSelect }) {
     if (!cleanCode) return;
 
 
-    // Immediately lock scanning.
     scanLockRef.current = true;
 
     setScanLocked(true);
     setLoading(true);
     setResult(null);
-
-
-    /*
-      If this lookup came from the phone camera, close the
-      camera after we successfully detected a barcode.
-    */
     setCameraOpen(false);
 
 
@@ -266,17 +236,10 @@ export default function ScannerModal({ onClose, onSelect }) {
       }
 
 
-      /*
-        ONE PRICE VARIANT
-      */
       if (data.variants.length === 1) {
         const item = {
           ...data.variants[0],
 
-          /*
-            Samples is the authoritative source for these values,
-            so put its information over the duplicated variant data.
-          */
           sample_name: data.sample.sample_name,
           manufacturer: data.sample.manufacturer,
           product_type: data.sample.product_type,
@@ -295,9 +258,6 @@ export default function ScannerModal({ onClose, onSelect }) {
       }
 
 
-      /*
-        MULTIPLE PRICE VARIANTS
-      */
       const items = data.variants.map((variant) => ({
         ...variant,
 
@@ -330,13 +290,10 @@ export default function ScannerModal({ onClose, onSelect }) {
 
 
   /* =========================================================
-     CAMERA SCANNER
+     CAMERA
   ========================================================= */
 
   useEffect(() => {
-    /*
-      The camera DOES NOT start until cameraOpen becomes true.
-    */
     if (!cameraOpen || !videoRef.current) return;
 
 
@@ -384,10 +341,6 @@ export default function ScannerModal({ onClose, onSelect }) {
     startScanner();
 
 
-    /*
-      When cameraOpen becomes false OR ScannerModal closes,
-      ZXing releases the phone/tablet camera.
-    */
     return () => {
       cancelled = true;
 
@@ -400,7 +353,7 @@ export default function ScannerModal({ onClose, onSelect }) {
 
 
   /* =========================================================
-     MANUAL / PHYSICAL SCANNER SEARCH
+     MANUAL SEARCH / PHYSICAL BARCODE SCANNER
   ========================================================= */
 
   async function manualSearch() {
@@ -410,14 +363,7 @@ export default function ScannerModal({ onClose, onSelect }) {
 
 
     /*
-      Barcodes are numeric.
-
-      Your physical barcode scanner behaves like a keyboard:
-          types 01010101
-          presses Enter
-
-      Enter calls this function, which recognizes that it is
-      numeric and performs the barcode lookup.
+      Physical scanner types the barcode and presses Enter.
     */
     if (/^\d+$/.test(q)) {
       await lookupBarcode(q);
@@ -425,9 +371,6 @@ export default function ScannerModal({ onClose, onSelect }) {
     }
 
 
-    /*
-      Otherwise treat the input as a product-name search.
-    */
     scanLockRef.current = true;
 
     setScanLocked(true);
@@ -437,7 +380,7 @@ export default function ScannerModal({ onClose, onSelect }) {
 
     try {
       /*
-        Search the main Samples catalog.
+        Search the main sample name.
       */
       const { data: sampleMatches, error: sampleSearchError } =
         await supabase
@@ -462,19 +405,10 @@ export default function ScannerModal({ onClose, onSelect }) {
 
 
       /*
-        ALSO search the pricing table.
+        Also search variant names.
 
-        This is useful for variants.
-
-        Example:
-
-        Main Samples table:
-            Sap
-
-        Variant:
-            Platinum
-
-        Searching "Platinum" can still find it.
+        This lets something like "Platinum" be searched even
+        if the main sample name is "Sap".
       */
       const { data: variantMatches, error: variantSearchError } =
         await supabase
@@ -507,9 +441,6 @@ export default function ScannerModal({ onClose, onSelect }) {
       }
 
 
-      /*
-        Combine all barcodes found through either search.
-      */
       const barcodeSet = new Set();
 
 
@@ -536,9 +467,6 @@ export default function ScannerModal({ onClose, onSelect }) {
       }
 
 
-      /*
-        Get authoritative Samples information for every barcode.
-      */
       const { data: samples, error: samplesError } = await supabase
         .from("Samples")
         .select(`
@@ -559,9 +487,6 @@ export default function ScannerModal({ onClose, onSelect }) {
       }
 
 
-      /*
-        Get active pricing for all matching samples.
-      */
       const { data: allVariants, error: variantsError } =
         await supabase
           .from("Sample_Variants")
@@ -596,45 +521,33 @@ export default function ScannerModal({ onClose, onSelect }) {
 
 
       (samples || []).forEach((sample) => {
-        const sampleNameMatched = sample.sample_name
-          ?.toLowerCase()
-          .includes(q.toLowerCase());
+        const query = q.toLowerCase();
+
+        const sampleNameMatched =
+          sample.sample_name
+            ?.toLowerCase()
+            .includes(query);
 
 
         let relevantVariants = (allVariants || []).filter(
-          (variant) => variant.barcode === sample.barcode
+          (variant) =>
+            variant.barcode === sample.barcode
         );
 
 
         /*
-          If the actual sample name matched the search,
-          show ALL of its variants.
+          If the main sample name matched, show all variants.
 
-          Example:
-              search "Sap"
-
-          Result:
-              Platinum
-              Gold
-              Silver
+          If only a variant name matched, show only those matching
+          variants.
         */
         if (!sampleNameMatched) {
-          /*
-            Otherwise the match probably came from a variant name.
-
-            Example:
-                search "Platinum"
-
-            Only show matching variants.
-          */
           relevantVariants = relevantVariants.filter((variant) => {
             const variantSampleName =
               variant.sample_name?.toLowerCase() || "";
 
             const variantName =
               variant.variant_name?.toLowerCase() || "";
-
-            const query = q.toLowerCase();
 
 
             return (
@@ -713,12 +626,6 @@ export default function ScannerModal({ onClose, onSelect }) {
     setCameraOpen(false);
 
 
-    /*
-      Wait until React has cleared the input, then put focus
-      back into it.
-
-      This lets the employee immediately scan another sample.
-    */
     setTimeout(() => {
       searchInputRef.current?.focus();
     }, 100);
@@ -726,44 +633,104 @@ export default function ScannerModal({ onClose, onSelect }) {
 
 
   /* =========================================================
-     SELECT ITEM
+     NORMAL SELECT MODE
   ========================================================= */
 
   function handleSelect(item) {
     const currentPrice = getCurrentPrice(item);
-    const onSale = isOnSale(item);
 
 
-    /*
-      Keep all of the new structured Supabase data.
-    */
     const selectedItem = {
       ...item,
 
       current_price: currentPrice,
-      on_sale: onSale,
-
+      on_sale: isOnSale(item),
 
       /*
-        ALSO provide the old fields your existing calculators
-        may already expect.
-
-        This lets us change the backend without immediately
-        having to rewrite every other component.
+        Legacy fields so your existing sample-signout code can
+        continue using ScannerModal.
       */
       "Item Name": getDisplayName(item),
       "Price": formatPrice(currentPrice),
     };
 
 
-    onSelect(selectedItem);
+    if (onSelect) {
+      onSelect(selectedItem);
+    }
+
     onClose();
   }
 
 
   /* =========================================================
+     SAVE FOR COMPARISON
+  ========================================================= */
+
+  function saveForComparison(item) {
+    const savedItem = {
+      ...item,
+
+      current_price: getCurrentPrice(item),
+      on_sale: isOnSale(item),
+    };
+
+
+    setSavedItems((previousItems) => {
+      /*
+        Barcode + variant code identifies an individual
+        price variation.
+
+        This prevents accidentally saving the exact same
+        product multiple times.
+      */
+      const alreadySaved = previousItems.some(
+        (existing) =>
+          existing.barcode === savedItem.barcode &&
+          existing.variant_code === savedItem.variant_code
+      );
+
+
+      if (alreadySaved) {
+        return previousItems;
+      }
+
+
+      return [
+        ...previousItems,
+        savedItem,
+      ];
+    });
+
+
+    /*
+      Immediately reset so another physical barcode can be
+      scanned without additional clicks.
+    */
+    unlock();
+  }
+
+
+  function removeSavedItem(itemToRemove) {
+    setSavedItems((previousItems) =>
+      previousItems.filter(
+        (item) =>
+          !(
+            item.barcode === itemToRemove.barcode &&
+            item.variant_code === itemToRemove.variant_code
+          )
+      )
+    );
+  }
+
+
+  function clearSavedItems() {
+    setSavedItems([]);
+  }
+
+
+  /* =========================================================
      OLD SPREADSHEET BUTTON
-     You said you want to leave this for now.
   ========================================================= */
 
   function openSpreadsheet() {
@@ -772,535 +739,959 @@ export default function ScannerModal({ onClose, onSelect }) {
 
 
   /* =========================================================
+     REUSABLE PRICE DISPLAY
+  ========================================================= */
+
+  function PriceDisplay({ item, compact = false }) {
+    if (isOnSale(item)) {
+      return (
+        <div className={compact ? "mt-1" : "mt-4"}>
+
+          <div
+            className={
+              compact
+                ? "text-red-500 font-bold"
+                : "text-red-500 font-bold text-xl"
+            }
+          >
+            SALE {formatPrice(item.sale_price)}
+          </div>
+
+
+          <div className="line-through text-gray-400">
+            Regular {formatPrice(item.regular_price)}
+          </div>
+
+
+          <div className="text-sm text-gray-400 mt-1">
+            Valid Until {formatDate(item.sale_end_date)}
+          </div>
+
+        </div>
+      );
+    }
+
+
+    return (
+      <div
+        className={
+          compact
+            ? "font-bold text-lg mt-1"
+            : "font-bold text-3xl my-3"
+        }
+      >
+        {formatPrice(item.regular_price)}
+      </div>
+    );
+  }
+
+
+  /* =========================================================
+     RESULT BUTTONS
+  ========================================================= */
+
+  function ResultButtons({ item }) {
+    /*
+      PRICE CHECK MODE
+    */
+    if (mode === "price") {
+      return (
+        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+
+          <button
+            className="
+              flex-1
+              bg-blue-600
+              hover:bg-blue-700
+              border
+              border-blue-800
+              py-3
+              px-4
+              rounded-xl
+              text-white
+              font-semibold
+              transition
+            "
+            onClick={() => saveForComparison(item)}
+          >
+            Save for Comparison
+          </button>
+
+
+          <button
+            className="
+              flex-1
+              bg-green-600
+              hover:bg-green-700
+              border
+              border-green-800
+              py-3
+              px-4
+              rounded-xl
+              text-white
+              font-semibold
+              transition
+            "
+            onClick={unlock}
+          >
+            Scan Next
+          </button>
+
+        </div>
+      );
+    }
+
+
+    /*
+      NORMAL SAMPLE SELECT MODE
+    */
+    return (
+      <div className="flex flex-col sm:flex-row gap-3 mt-4">
+
+        <button
+          className="
+            flex-1
+            bg-blue-600
+            hover:bg-blue-700
+            py-3
+            px-4
+            rounded-xl
+            text-white
+            font-semibold
+            transition
+          "
+          onClick={() => handleSelect(item)}
+        >
+          Use This
+        </button>
+
+
+        <button
+          className="
+            flex-1
+            bg-green-600
+            hover:bg-green-700
+            py-3
+            px-4
+            rounded-xl
+            text-white
+            font-semibold
+            transition
+          "
+          onClick={unlock}
+        >
+          Scan Next
+        </button>
+
+      </div>
+    );
+  }
+
+
+  /* =========================================================
      UI
   ========================================================= */
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]">
+    <div className="
+      fixed
+      inset-0
+      z-[9999]
+      bg-black/80
+      flex
+      items-center
+      justify-center
+      p-4
+    ">
 
-      <div style={styles.modal}>
+      <div
+        className={`
+          bg-[#202020]
+          text-white
+          rounded-2xl
+          shadow-2xl
+          border
+          border-[#555555]
+          w-full
+          max-h-[95vh]
+          overflow-y-auto
+          p-5
+          ${
+            mode === "price"
+              ? "max-w-6xl"
+              : "max-w-xl"
+          }
+        `}
+      >
 
-        {/* ================= TITLE ================= */}
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
 
-        <h2 className="text-3xl font-bold text-center text-blue-600 mb-4">
-          <span className="mr-2">💲</span>
-          Price Checker
-          <span className="ml-2">💲</span>
-        </h2>
+        <div className="flex items-center justify-between gap-4 mb-5">
 
-
-        {/* ================= SEARCH ================= */}
-
-        <input
-          ref={searchInputRef}
-          autoFocus
-          placeholder="Scan barcode or enter product name"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              manualSearch();
-            }
-          }}
-          className="
-            w-full
-            p-3
-            text-lg
-            border-2
-            border-gray-300
-            rounded-xl
-            focus:outline-none
-            focus:border-blue-500
-          "
-        />
+          <h2 className="text-3xl font-bold text-blue-400">
+            💲 Price Checker
+          </h2>
 
 
-        <button
-          className="
-            w-full
-            mt-3
-            py-3
-            text-lg
-            bg-blue-600
-            hover:bg-blue-700
-            disabled:bg-blue-400
-            border
-            border-blue-800
-            rounded-xl
-            shadow-md
-            font-semibold
-            text-white
-            transition
-          "
-          onClick={manualSearch}
-          disabled={loading}
+          <button
+            className="
+              shrink-0
+              bg-gray-600
+              hover:bg-gray-700
+              text-white
+              w-11
+              h-11
+              rounded-xl
+              font-bold
+              text-xl
+              transition
+            "
+            onClick={onClose}
+            aria-label="Close price checker"
+          >
+            ✕
+          </button>
+
+        </div>
+
+
+        {/* =====================================================
+            MAIN LAYOUT
+
+            Phones:
+                Everything stacks vertically.
+
+            Larger tablets / computers:
+                Search/result on left.
+                Comparison list on right.
+        ===================================================== */}
+
+        <div
+          className={
+            mode === "price"
+              ? "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6"
+              : "block"
+          }
         >
-          {loading ? "Searching..." : "Search"}
-        </button>
 
+          {/* ===================================================
+              LEFT SIDE - SEARCH / RESULT
+          =================================================== */}
 
-        {/* ================= CAMERA BUTTON ================= */}
+          <div className="min-w-0">
 
-        <button
-          className="
-            w-full
-            mt-3
-            py-3
-            text-lg
-            bg-green-600
-            hover:bg-green-700
-            border
-            border-green-800
-            rounded-xl
-            shadow-md
-            font-semibold
-            text-white
-            transition
-          "
-          onClick={() => {
-            /*
-              If we're opening the camera after an old result,
-              clear the scanner lock first.
-            */
-            if (!cameraOpen) {
-              scanLockRef.current = false;
-              setScanLocked(false);
-              setResult(null);
-            }
+            {/* SEARCH BAR */}
 
-            setCameraOpen((current) => !current);
-          }}
-        >
-          {cameraOpen ? "Close Camera" : "📷 Use Camera"}
-        </button>
-
-
-        {/* ================= CAMERA ================= */}
-
-        {cameraOpen && (
-          <div style={styles.videoBox}>
-            <video
-              ref={videoRef}
-              style={styles.video}
-              autoPlay
-              muted
-              playsInline
+            <input
+              ref={searchInputRef}
+              autoFocus
+              placeholder="Scan barcode or enter product name"
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  manualSearch();
+                }
+              }}
+              className="
+                w-full
+                bg-[#3A3A3A]
+                border
+                border-[#888888]
+                text-white
+                placeholder:text-[#AAB7CA]
+                p-4
+                text-lg
+                outline-none
+                focus:border-white
+              "
             />
-          </div>
-        )}
 
 
-        {/* ================= RESULTS ================= */}
+            {/* SEARCH + CAMERA BUTTONS */}
 
-        <div style={styles.resultBox}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
 
-          {!result && !loading && (
-            <div className="text-gray-600">
-              Waiting for scan…
-            </div>
-          )}
-
-
-          {loading && (
-            <div className="text-lg font-semibold">
-              Checking price…
-            </div>
-          )}
-
-
-          {/* ================= ERROR ================= */}
-
-          {result?.type === "error" && (
-            <>
-              <div className="font-semibold text-red-600">
-                {result.message}
-              </div>
+              <button
+                className="
+                  w-full
+                  py-3
+                  px-4
+                  bg-blue-600
+                  hover:bg-blue-700
+                  disabled:bg-blue-900
+                  disabled:text-gray-400
+                  rounded-xl
+                  font-semibold
+                  transition
+                "
+                onClick={manualSearch}
+                disabled={loading}
+              >
+                {loading
+                  ? "Searching..."
+                  : "Search"}
+              </button>
 
 
               <button
                 className="
                   w-full
-                  mt-3
-                  py-2
-                  bg-gray-600
-                  hover:bg-gray-700
-                  rounded-lg
-                  text-white
+                  py-3
+                  px-4
+                  bg-green-600
+                  hover:bg-green-700
+                  rounded-xl
                   font-semibold
+                  transition
                 "
-                onClick={unlock}
+                onClick={() => {
+                  if (!cameraOpen) {
+                    scanLockRef.current = false;
+
+                    setScanLocked(false);
+                    setResult(null);
+                  }
+
+
+                  setCameraOpen(
+                    (current) => !current
+                  );
+                }}
               >
-                Try Again
+                {cameraOpen
+                  ? "Close Camera"
+                  : "📷 Use Camera"}
               </button>
-            </>
-          )}
+
+            </div>
 
 
-          {/* ================= SINGLE RESULT ================= */}
+            {/* CAMERA */}
 
-          {result?.type === "single" && (
-            <>
-              <div className="text-2xl font-semibold">
-                {result.item.sample_name}
-              </div>
+            {cameraOpen && (
+              <div className="
+                w-full
+                h-64
+                mt-4
+                overflow-hidden
+                rounded-xl
+                border-2
+                border-[#666666]
+                bg-black
+              ">
 
-
-              {result.item.variant_name &&
-                result.item.variant_name !== "Standard" && (
-                  <div className="text-xl mt-1">
-                    {result.item.variant_name}
-                  </div>
-                )}
-
-
-              {result.item.manufacturer && (
-                <div className="text-gray-600 mt-1">
-                  {result.item.manufacturer}
-                </div>
-              )}
-
-
-              {/* SALE */}
-
-              {isOnSale(result.item) ? (
-                <div className="mt-4">
-
-                  <div className="text-red-600 font-bold text-xl">
-                    SALE
-                  </div>
-
-
-                  <div style={styles.price}>
-                    {formatPrice(result.item.sale_price)}
-                  </div>
-
-
-                  <div className="line-through text-gray-500 text-lg">
-                    Regular{" "}
-                    {formatPrice(result.item.regular_price)}
-                  </div>
-
-
-                  <div className="mt-2 text-sm">
-                    Valid Until{" "}
-                    {formatDate(result.item.sale_end_date)}
-                  </div>
-
-                </div>
-              ) : (
-
-                /* REGULAR PRICE */
-
-                <div style={styles.price}>
-                  {formatPrice(result.item.regular_price)}
-                </div>
-              )}
-
-
-              <div className="flex gap-4 mt-4">
-
-                <button
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
                   className="
-                    flex-1
-                    bg-blue-600
-                    hover:bg-blue-700
-                    border
-                    border-blue-800
-                    py-3
-                    rounded-xl
-                    shadow-xl
-                    text-white
-                    font-semibold
-                    transition
+                    w-full
+                    h-full
+                    object-cover
                   "
-                  onClick={() => handleSelect(result.item)}
-                >
-                  Use This
-                </button>
-
-
-                <button
-                  className="
-                    flex-1
-                    bg-green-600
-                    hover:bg-green-700
-                    border
-                    border-green-800
-                    py-3
-                    rounded-xl
-                    shadow-xl
-                    text-white
-                    font-semibold
-                    transition
-                  "
-                  onClick={unlock}
-                >
-                  Scan Next
-                </button>
+                />
 
               </div>
-            </>
-          )}
+            )}
 
 
-          {/* ================= MULTIPLE RESULTS ================= */}
+            {/* =================================================
+                RESULT AREA
+            ================================================= */}
 
-          {result?.type === "multiple" && (
-            <>
+            <div className="
+              mt-5
+              border
+              border-[#555555]
+              bg-[#181818]
+              rounded-xl
+              p-4
+              min-h-28
+            ">
 
-              {result.sample && (
-                <>
-                  <div className="text-2xl font-semibold">
-                    {result.sample.sample_name}
-                  </div>
-
-
-                  {result.sample.manufacturer && (
-                    <div className="text-gray-600 mb-3">
-                      {result.sample.manufacturer}
-                    </div>
-                  )}
-                </>
+              {!result && !loading && (
+                <div className="
+                  text-gray-400
+                  text-center
+                  py-5
+                ">
+                  Scan a sample or search by product name.
+                </div>
               )}
 
 
-              <div className="font-semibold text-lg mt-2">
-                Select item:
-              </div>
+              {loading && (
+                <div className="
+                  text-center
+                  py-5
+                  text-lg
+                  font-semibold
+                ">
+                  Checking price...
+                </div>
+              )}
 
 
-              {result.items.map((item) => (
-                <div
-                  key={`${item.barcode}-${item.variant_code}`}
-                  style={styles.variant}
-                >
+              {/* ERROR */}
 
-                  {/* PRODUCT / VARIANT NAME */}
+              {result?.type === "error" && (
+                <div className="text-center">
 
-                  <div className="font-semibold text-lg">
+                  <div className="
+                    text-red-400
+                    font-semibold
+                    text-lg
+                  ">
+                    {result.message}
+                  </div>
 
-                    {result.sample
-                      ? (
-                          item.variant_name === "Standard"
-                            ? "Standard"
-                            : item.variant_name
-                        )
-                      : getDisplayName(item)
-                    }
+
+                  <button
+                    className="
+                      mt-4
+                      bg-gray-600
+                      hover:bg-gray-700
+                      text-white
+                      px-6
+                      py-3
+                      rounded-xl
+                      font-semibold
+                    "
+                    onClick={unlock}
+                  >
+                    Try Again
+                  </button>
+
+                </div>
+              )}
+
+
+              {/* ===============================================
+                  SINGLE PRICE
+              =============================================== */}
+
+              {result?.type === "single" && (
+                <div>
+
+                  <div className="text-center">
+
+                    <div className="
+                      text-2xl
+                      font-bold
+                    ">
+                      {result.item.sample_name}
+                    </div>
+
+
+                    {result.item.variant_name &&
+                      result.item.variant_name !== "Standard" && (
+                        <div className="
+                          text-xl
+                          mt-1
+                        ">
+                          {result.item.variant_name}
+                        </div>
+                      )}
+
+
+                    {result.item.manufacturer && (
+                      <div className="
+                        text-gray-400
+                        mt-1
+                      ">
+                        {result.item.manufacturer}
+                      </div>
+                    )}
+
+
+                    <PriceDisplay
+                      item={result.item}
+                    />
 
                   </div>
 
 
-                  {/* EXTRA VARIANT DETAILS */}
+                  <ResultButtons
+                    item={result.item}
+                  />
 
-                  {(item.grade ||
-                    item.construction ||
-                    item.thickness ||
-                    item.width) && (
+                </div>
+              )}
 
-                    <div className="text-sm text-gray-600 mt-1">
 
-                      {[
-                        item.grade,
-                        item.construction,
-                        item.thickness,
-                        item.width,
-                      ]
-                        .filter(Boolean)
-                        .join(" • ")}
+              {/* ===============================================
+                  MULTIPLE VARIANTS / SEARCH RESULTS
+              =============================================== */}
+
+              {result?.type === "multiple" && (
+                <div>
+
+                  {result.sample && (
+                    <div className="
+                      text-center
+                      mb-4
+                    ">
+
+                      <div className="
+                        text-2xl
+                        font-bold
+                      ">
+                        {result.sample.sample_name}
+                      </div>
+
+
+                      {result.sample.manufacturer && (
+                        <div className="
+                          text-gray-400
+                          mt-1
+                        ">
+                          {result.sample.manufacturer}
+                        </div>
+                      )}
 
                     </div>
                   )}
 
 
-                  {/* SALE PRICE */}
+                  <div className="
+                    font-semibold
+                    text-lg
+                    mb-3
+                  ">
+                    Select a price:
+                  </div>
 
-                  {isOnSale(item) ? (
-                    <div className="mt-2">
 
-                      <div className="text-red-600 font-bold text-lg">
-                        SALE {formatPrice(item.sale_price)}
+                  <div className="space-y-3">
+
+                    {result.items.map((item) => (
+
+                      <div
+                        key={`${item.barcode}-${item.variant_code}`}
+                        className="
+                          border
+                          border-[#555555]
+                          bg-[#282828]
+                          rounded-xl
+                          p-4
+                        "
+                      >
+
+                        {/* NAME */}
+
+                        <div className="
+                          font-bold
+                          text-lg
+                        ">
+
+                          {result.sample
+                            ? (
+                                item.variant_name === "Standard"
+                                  ? "Standard"
+                                  : item.variant_name
+                              )
+                            : getDisplayName(item)
+                          }
+
+                        </div>
+
+
+                        {/* DETAILS */}
+
+                        {(item.grade ||
+                          item.construction ||
+                          item.thickness ||
+                          item.width) && (
+
+                          <div className="
+                            text-sm
+                            text-gray-400
+                            mt-1
+                          ">
+
+                            {[
+                              item.grade,
+                              item.construction,
+                              item.thickness,
+                              item.width,
+                            ]
+                              .filter(Boolean)
+                              .join(" • ")}
+
+                          </div>
+                        )}
+
+
+                        <PriceDisplay
+                          item={item}
+                          compact
+                        />
+
+
+                        {mode === "price" ? (
+
+                          <button
+                            className="
+                              w-full
+                              mt-3
+                              bg-blue-600
+                              hover:bg-blue-700
+                              text-white
+                              px-4
+                              py-3
+                              rounded-xl
+                              font-semibold
+                              transition
+                            "
+                            onClick={() =>
+                              saveForComparison(item)
+                            }
+                          >
+                            Save for Comparison
+                          </button>
+
+                        ) : (
+
+                          <button
+                            className="
+                              w-full
+                              mt-3
+                              bg-blue-600
+                              hover:bg-blue-700
+                              text-white
+                              px-4
+                              py-3
+                              rounded-xl
+                              font-semibold
+                              transition
+                            "
+                            onClick={() =>
+                              handleSelect(item)
+                            }
+                          >
+                            Select
+                          </button>
+
+                        )}
+
                       </div>
+                    ))}
 
-
-                      <div className="line-through text-gray-500">
-                        Regular {formatPrice(item.regular_price)}
-                      </div>
-
-
-                      <div className="text-sm mt-1">
-                        Valid Until{" "}
-                        {formatDate(item.sale_end_date)}
-                      </div>
-
-                    </div>
-                  ) : (
-
-                    /* REGULAR PRICE */
-
-                    <div className="text-xl mt-2 font-semibold">
-                      {formatPrice(item.regular_price)}
-                    </div>
-                  )}
+                  </div>
 
 
                   <button
                     className="
                       w-full
-                      mt-3
-                      py-2
-                      bg-blue-600
-                      hover:bg-blue-700
+                      mt-4
+                      bg-gray-600
+                      hover:bg-gray-700
                       text-white
-                      rounded-lg
+                      py-3
+                      rounded-xl
                       font-semibold
                     "
-                    onClick={() => handleSelect(item)}
+                    onClick={unlock}
                   >
-                    Select
+                    Cancel
                   </button>
 
                 </div>
-              ))}
+              )}
+
+            </div>
+
+          </div>
 
 
-              <button
-                className="
-                  w-full
-                  mt-3
-                  py-2
-                  bg-gray-600
-                  hover:bg-gray-700
-                  rounded-lg
-                  text-white
-                  font-semibold
-                "
-                onClick={unlock}
-              >
-                Cancel
-              </button>
+          {/* ===================================================
+              RIGHT SIDE - SAVED COMPARISON
+              ONLY EXISTS IN PRICE MODE
+          =================================================== */}
 
-            </>
+          {mode === "price" && (
+
+            <div className="
+              min-w-0
+              border
+              border-[#555555]
+              bg-[#181818]
+              rounded-xl
+              p-4
+              lg:self-start
+            ">
+
+              {/* HEADER */}
+
+              <div className="
+                flex
+                items-center
+                justify-between
+                gap-3
+                mb-4
+              ">
+
+                <div>
+
+                  <h3 className="
+                    text-xl
+                    font-bold
+                  ">
+                    Saved Comparison
+                  </h3>
+
+
+                  <div className="
+                    text-sm
+                    text-gray-400
+                  ">
+                    {savedItems.length}{" "}
+                    {savedItems.length === 1
+                      ? "sample"
+                      : "samples"}
+                  </div>
+
+                </div>
+
+
+                {savedItems.length > 0 && (
+                  <button
+                    className="
+                      bg-red-700
+                      hover:bg-red-800
+                      text-white
+                      px-3
+                      py-2
+                      rounded-lg
+                      text-sm
+                      font-semibold
+                      transition
+                    "
+                    onClick={clearSavedItems}
+                  >
+                    Clear All
+                  </button>
+                )}
+
+              </div>
+
+
+              {/* EMPTY COMPARISON */}
+
+              {savedItems.length === 0 && (
+                <div className="
+                  border
+                  border-dashed
+                  border-[#555555]
+                  rounded-xl
+                  p-6
+                  text-center
+                  text-gray-400
+                ">
+
+                  <div className="text-3xl mb-2">
+                    🏷️
+                  </div>
+
+                  <div>
+                    Saved samples will appear here.
+                  </div>
+
+                  <div className="
+                    text-sm
+                    mt-2
+                  ">
+                    Scan a product, then press
+                    {" "}
+                    <strong>
+                      Save for Comparison
+                    </strong>.
+                  </div>
+
+                </div>
+              )}
+
+
+              {/* SAVED ITEMS */}
+
+              <div className="space-y-3">
+
+                {savedItems.map((item) => (
+
+                  <div
+                    key={`${item.barcode}-${item.variant_code}`}
+                    className="
+                      border
+                      border-[#555555]
+                      bg-[#282828]
+                      rounded-xl
+                      p-4
+                    "
+                  >
+
+                    <div className="
+                      flex
+                      justify-between
+                      items-start
+                      gap-3
+                    ">
+
+                      <div className="min-w-0">
+
+                        <div className="
+                          font-bold
+                          text-lg
+                          break-words
+                        ">
+                          {item.sample_name}
+                        </div>
+
+
+                        {item.variant_name &&
+                          item.variant_name !== "Standard" && (
+
+                            <div className="
+                              text-gray-300
+                            ">
+                              {item.variant_name}
+                            </div>
+                          )}
+
+
+                        {item.manufacturer && (
+                          <div className="
+                            text-sm
+                            text-gray-400
+                            mt-1
+                          ">
+                            {item.manufacturer}
+                          </div>
+                        )}
+
+                      </div>
+
+
+                      <button
+                        className="
+                          shrink-0
+                          w-9
+                          h-9
+                          bg-red-700
+                          hover:bg-red-800
+                          text-white
+                          rounded-lg
+                          font-bold
+                          transition
+                        "
+                        onClick={() =>
+                          removeSavedItem(item)
+                        }
+                        aria-label={`Remove ${getDisplayName(item)}`}
+                      >
+                        ✕
+                      </button>
+
+                    </div>
+
+
+                    {/* EXTRA DETAILS */}
+
+                    {(item.grade ||
+                      item.construction ||
+                      item.thickness ||
+                      item.width) && (
+
+                      <div className="
+                        text-sm
+                        text-gray-400
+                        mt-2
+                      ">
+
+                        {[
+                          item.grade,
+                          item.construction,
+                          item.thickness,
+                          item.width,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")}
+
+                      </div>
+                    )}
+
+
+                    {/* PRICE */}
+
+                    <PriceDisplay
+                      item={item}
+                      compact
+                    />
+
+                  </div>
+                ))}
+
+              </div>
+
+            </div>
           )}
 
         </div>
 
 
-        {/* ================= OLD SPREADSHEET BUTTON ================= */}
+        {/* =====================================================
+            BOTTOM BUTTONS
+        ===================================================== */}
 
-        <button
-          className="
-            w-full
-            mt-3
-            py-3
-            text-lg
-            bg-blue-600
-            hover:bg-blue-700
-            border
-            border-blue-800
-            rounded-xl
-            shadow-md
-            font-semibold
-            text-white
-            transition
-          "
-          onClick={openSpreadsheet}
-        >
-          Open Spreadsheet
-        </button>
+        <div className="
+          flex
+          flex-col
+          sm:flex-row
+          gap-3
+          mt-5
+        ">
+
+          <button
+            className="
+              flex-1
+              py-3
+              bg-blue-600
+              hover:bg-blue-700
+              rounded-xl
+              font-semibold
+              transition
+            "
+            onClick={openSpreadsheet}
+          >
+            Open Spreadsheet
+          </button>
 
 
-        {/* ================= CLOSE ================= */}
+          <button
+            className="
+              flex-1
+              py-3
+              bg-gray-600
+              hover:bg-gray-700
+              rounded-xl
+              font-semibold
+              transition
+            "
+            onClick={onClose}
+          >
+            Close
+          </button>
 
-        <button
-          className="
-            w-full
-            mt-3
-            py-3
-            text-lg
-            bg-gray-600
-            hover:bg-gray-700
-            border
-            border-gray-800
-            rounded-xl
-            shadow-md
-            font-semibold
-            text-white
-            transition
-          "
-          onClick={onClose}
-        >
-          Close
-        </button>
+        </div>
 
       </div>
+
     </div>
   );
 }
-
-
-/* =========================================================
-   STYLES
-========================================================= */
-
-const styles = {
-
-  modal: {
-    background: "#fff",
-    padding: 20,
-    borderRadius: 16,
-    width: "90%",
-    maxWidth: 600,
-    textAlign: "center",
-
-    /*
-      Important for phones and for products with a lot of
-      variants. The modal will scroll rather than extend
-      off-screen.
-    */
-    maxHeight: "95vh",
-    overflowY: "auto",
-  },
-
-
-  videoBox: {
-    width: "100%",
-    height: 250,
-    overflow: "hidden",
-    borderRadius: 12,
-    border: "3px solid #222",
-    marginTop: 12,
-    marginBottom: 10,
-  },
-
-
-  video: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-
-
-  resultBox: {
-    marginTop: 15,
-    padding: 15,
-    border: "2px solid #333",
-    borderRadius: 12,
-  },
-
-
-  variant: {
-    border: "1px solid #333",
-    padding: 12,
-    marginTop: 10,
-    borderRadius: 10,
-  },
-
-
-  price: {
-    fontSize: 28,
-    fontWeight: "bold",
-    margin: "10px 0",
-  },
-
-};

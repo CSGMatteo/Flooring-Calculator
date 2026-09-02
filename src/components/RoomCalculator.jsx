@@ -124,7 +124,7 @@ export default function RoomCalculator({ setMode }) {
 
                         <button
                             className="py-6 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition"
-                            onClick={() => {setPage("vinylSheetRoom")
+                            onClick={() => {setMode("maintenance")
                             }}
                         >
                             Vinyl Sheet

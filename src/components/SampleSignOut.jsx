@@ -425,6 +425,7 @@ export default function SampleSignOut({ setMode }) {
   }
 
   return (
+
     <div className="bg-[#111111] text-white rounded-2xl shadow-xl p-10 space-y-6">
 
       {step === "signOutOptions" && (
