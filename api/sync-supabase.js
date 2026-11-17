@@ -144,6 +144,9 @@ export default async function handler(req, res) {
           regular_price:
             cleanNumber(row.regular_price),
 
+          tariff_price:
+            cleanNumber(row.tariff_price),
+
           sale_price:
             cleanNumber(row.sale_price),
 
