@@ -60,21 +60,48 @@ export default function ScannerModal({
     return getTodayString() <= item.sale_end_date;
   }
 
+  function getPriceInfo(item) {
+    const toPrice = (value) => {
+      if (
+        value === null ||
+        value === undefined ||
+        value === ""
+      ) {
+        return null;
+      }
+
+      const number = Number(value);
+
+      return Number.isFinite(number) ? number : null;
+    };
+
+    const regularPrice = toPrice(item.regular_price);
+    const salePrice = toPrice(item.sale_price);
+    const tariffPrice = toPrice(item.tariff_price);
+
+    const saleActive = isOnSale(item) && salePrice !== null;
+
+    const basePrice = saleActive
+      ? salePrice
+      : regularPrice;
+    
+    const tariffApplied = 
+      tariffPrice !== null &&
+      (basePrice === null || tariffPrice > basePrice);
+    
+    const currentPrice = tariffApplied
+      ? tariffPrice
+      : basePrice;
+    
+    return {
+      currentPrice,
+      tariffApplied,
+      saleApplied: saleActive && !tariffApplied,
+    };
+  }
 
   function getCurrentPrice(item) {
-    if (isOnSale(item)) {
-      return Number(item.sale_price);
-    }
-
-    if (
-      item.regular_price === null ||
-      item.regular_price === undefined ||
-      item.regular_price === ""
-    ) {
-      return null;
-    }
-
-    return Number(item.regular_price);
+    return getPriceInfo(item).currentPrice;
   }
 
 
@@ -160,6 +187,7 @@ export default function ScannerModal({
         sample_name,
         manufacturer,
         regular_price,
+        tariff_price,
         sale_price,
         sale_end_date,
         variant_code,
@@ -413,6 +441,7 @@ export default function ScannerModal({
             sample_name,
             manufacturer,
             regular_price,
+            tariff_price,
             sale_price,
             sale_end_date,
             variant_code,
@@ -490,6 +519,7 @@ export default function ScannerModal({
             sample_name,
             manufacturer,
             regular_price,
+            tariff_price,
             sale_price,
             sale_end_date,
             variant_code,
@@ -639,7 +669,8 @@ export default function ScannerModal({
       ...item,
 
       current_price: currentPrice,
-      on_sale: isOnSale(item),
+      on_sale: getPriceInfo(item).saleApplied,
+      tariff_applied: getPriceInfo(item).tariffApplied,
 
       /*
         Legacy fields so your existing sample-signout code can
@@ -667,7 +698,8 @@ export default function ScannerModal({
       ...item,
 
       current_price: getCurrentPrice(item),
-      on_sale: isOnSale(item),
+      on_sale: getPriceInfo(item).saleApplied,
+      tariff_applied: getPriceInfo(item).tariffApplied,
     };
 
 
@@ -731,10 +763,38 @@ export default function ScannerModal({
   ========================================================= */
 
   function PriceDisplay({ item, compact = false }) {
-    if (isOnSale(item)) {
+    const {
+      currentPrice,
+      tariffApplied,
+      saleApplied,
+    } = getPriceInfo(item);
+
+    if (tariffApplied) {
       return (
         <div className={compact ? "mt-1" : "mt-4"}>
+          <div
+            className={
+              compact
+                ? "font-bold text-lg"
+                : "font-bold text-3xl"
+            }
+          >
+            {formatPrice(currentPrice)}
+          </div>
 
+          <div className="flex items-center gap-2 mt-2 text-amber-300 text-sm">
+            <span>ⓘ</span>
+            <span>
+              Tariff-adjusted price — tariff included
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    if (saleApplied) {
+      return (
+        <div className={compact ? "mt-1" : "mt-4"}>
           <div
             className={
               compact
@@ -742,23 +802,19 @@ export default function ScannerModal({
                 : "text-red-500 font-bold text-xl"
             }
           >
-            SALE {formatPrice(item.sale_price)}
+            SALE {formatPrice(currentPrice)}
           </div>
-
 
           <div className="line-through text-gray-400">
             Regular {formatPrice(item.regular_price)}
           </div>
 
-
           <div className="text-sm text-gray-400 mt-1">
             Valid Until {formatDate(item.sale_end_date)}
           </div>
-
         </div>
       );
     }
-
 
     return (
       <div
@@ -768,7 +824,7 @@ export default function ScannerModal({
             : "font-bold text-3xl my-3"
         }
       >
-        {formatPrice(item.regular_price)}
+        {formatPrice(currentPrice)}
       </div>
     );
   }
