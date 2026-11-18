@@ -771,18 +771,14 @@ export default function ScannerModal({
 
     if (tariffApplied) {
       return (
-        <div className={compact ? "mt-1" : "mt-4"}>
+        <div className={`scanner-price-block ${compact ? "scanner-price-block--compact" : ""}`}>
           <div
-            className={
-              compact
-                ? "font-bold text-lg"
-                : "font-bold text-3xl"
-            }
+            className={`scanner-price-value ${compact ? "scanner-price-value--compact" : ""}`}
           >
             {formatPrice(currentPrice)}
           </div>
 
-          <div className="flex items-center gap-2 mt-2 text-amber-300 text-sm">
+          <div className="scanner-tariff-notice">
             <span>ⓘ</span>
             <span>
               Tariff-adjusted price — tariff included
@@ -794,22 +790,18 @@ export default function ScannerModal({
 
     if (saleApplied) {
       return (
-        <div className={compact ? "mt-1" : "mt-4"}>
+        <div className={`scanner-price-block ${compact ? "scanner-price-block--compact" : ""}`}>
           <div
-            className={
-              compact
-                ? "text-red-500 font-bold"
-                : "text-red-500 font-bold text-xl"
-            }
+            className={`scanner-price-value scanner-price-value--sale ${compact ? "scanner-price-value--compact" : ""}`}
           >
             SALE {formatPrice(currentPrice)}
           </div>
 
-          <div className="line-through text-gray-400">
+          <div className="scanner-regular-strike">
             Regular {formatPrice(item.regular_price)}
           </div>
 
-          <div className="text-sm text-gray-400 mt-1">
+          <div className="scanner-sale-expiry">
             Valid Until {formatDate(item.sale_end_date)}
           </div>
         </div>
@@ -818,11 +810,7 @@ export default function ScannerModal({
 
     return (
       <div
-        className={
-          compact
-            ? "font-bold text-lg mt-1"
-            : "font-bold text-3xl my-3"
-        }
+        className={`scanner-price-value scanner-price-value--regular ${compact ? "scanner-price-value--compact" : ""}`}
       >
         {formatPrice(currentPrice)}
       </div>
@@ -840,22 +828,10 @@ export default function ScannerModal({
     */
     if (mode === "price") {
       return (
-        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+        <div className="scanner-action-row">
 
           <button
-            className="
-              flex-1
-              bg-blue-600
-              hover:bg-blue-700
-              border
-              border-blue-800
-              py-3
-              px-4
-              rounded-xl
-              text-white
-              font-semibold
-              transition
-            "
+            className="scanner-button scanner-button--blue"
             onClick={() => saveForComparison(item)}
           >
             Save for Comparison
@@ -863,19 +839,7 @@ export default function ScannerModal({
 
 
           <button
-            className="
-              flex-1
-              bg-green-600
-              hover:bg-green-700
-              border
-              border-green-800
-              py-3
-              px-4
-              rounded-xl
-              text-white
-              font-semibold
-              transition
-            "
+            className="scanner-button scanner-button--green"
             onClick={unlock}
           >
             Scan Next
@@ -890,20 +854,10 @@ export default function ScannerModal({
       NORMAL SAMPLE SELECT MODE
     */
     return (
-      <div className="flex flex-col sm:flex-row gap-3 mt-4">
+      <div className="scanner-action-row">
 
         <button
-          className="
-            flex-1
-            bg-blue-600
-            hover:bg-blue-700
-            py-3
-            px-4
-            rounded-xl
-            text-white
-            font-semibold
-            transition
-          "
+          className="scanner-button scanner-button--blue"
           onClick={() => handleSelect(item)}
         >
           Use This
@@ -911,17 +865,7 @@ export default function ScannerModal({
 
 
         <button
-          className="
-            flex-1
-            bg-green-600
-            hover:bg-green-700
-            py-3
-            px-4
-            rounded-xl
-            text-white
-            font-semibold
-            transition
-          "
+          className="scanner-button scanner-button--green"
           onClick={unlock}
         >
           Scan Next
@@ -937,61 +881,25 @@ export default function ScannerModal({
   ========================================================= */
 
   return (
-    <div className="
-      fixed
-      inset-0
-      z-[9999]
-      bg-black/80
-      flex
-      items-center
-      justify-center
-      p-4
-    ">
+    <div className="scanner-overlay">
 
       <div
-        className={`
-          bg-[#202020]
-          text-white
-          rounded-2xl
-          shadow-2xl
-          border
-          border-[#555555]
-          w-full
-          max-h-[95vh]
-          overflow-y-auto
-          p-5
-          ${
-            mode === "price"
-              ? "max-w-6xl"
-              : "max-w-xl"
-          }
-        `}
+        className={`scanner-modal ${mode === "price" ? "scanner-modal--price" : "scanner-modal--select"}`}
       >
 
         {/* =====================================================
             HEADER
         ===================================================== */}
 
-        <div className="flex items-center justify-between gap-4 mb-5">
+        <div className="scanner-header">
 
-          <h2 className="text-3xl font-bold text-blue-400">
+          <h2 className="scanner-heading">
             💲 Price Checker
           </h2>
 
 
           <button
-            className="
-              shrink-0
-              bg-gray-600
-              hover:bg-gray-700
-              text-white
-              w-11
-              h-11
-              rounded-xl
-              font-bold
-              text-xl
-              transition
-            "
+            className="scanner-icon-button"
             onClick={onClose}
             aria-label="Close price checker"
           >
@@ -1013,18 +921,14 @@ export default function ScannerModal({
         ===================================================== */}
 
         <div
-          className={
-            mode === "price"
-              ? "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6"
-              : "block"
-          }
+          className={`scanner-layout ${mode === "price" ? "scanner-layout--price" : ""}`}
         >
 
           {/* ===================================================
               LEFT SIDE - SEARCH / RESULT
           =================================================== */}
 
-          <div className="min-w-0">
+          <div className="scanner-main">
 
             {/* SEARCH BAR */}
 
@@ -1042,38 +946,16 @@ export default function ScannerModal({
                   manualSearch();
                 }
               }}
-              className="
-                w-full
-                bg-[#3A3A3A]
-                border
-                border-[#888888]
-                text-white
-                placeholder:text-[#AAB7CA]
-                p-4
-                text-lg
-                outline-none
-                focus:border-white
-              "
+              className="scanner-search-input"
             />
 
 
             {/* SEARCH + CAMERA BUTTONS */}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div className="scanner-search-actions">
 
               <button
-                className="
-                  w-full
-                  py-3
-                  px-4
-                  bg-blue-600
-                  hover:bg-blue-700
-                  disabled:bg-blue-900
-                  disabled:text-gray-400
-                  rounded-xl
-                  font-semibold
-                  transition
-                "
+                className="scanner-button scanner-button--blue"
                 onClick={manualSearch}
                 disabled={loading}
               >
@@ -1084,16 +966,7 @@ export default function ScannerModal({
 
 
               <button
-                className="
-                  w-full
-                  py-3
-                  px-4
-                  bg-green-600
-                  hover:bg-green-700
-                  rounded-xl
-                  font-semibold
-                  transition
-                "
+                className="scanner-button scanner-button--green"
                 onClick={() => {
                   if (!cameraOpen) {
                     scanLockRef.current = false;
@@ -1119,27 +992,14 @@ export default function ScannerModal({
             {/* CAMERA */}
 
             {cameraOpen && (
-              <div className="
-                w-full
-                h-64
-                mt-4
-                overflow-hidden
-                rounded-xl
-                border-2
-                border-[#666666]
-                bg-black
-              ">
+              <div className="scanner-camera-frame">
 
                 <video
                   ref={videoRef}
                   autoPlay
                   muted
                   playsInline
-                  className="
-                    w-full
-                    h-full
-                    object-cover
-                  "
+                  className="scanner-video"
                 />
 
               </div>
@@ -1150,34 +1010,17 @@ export default function ScannerModal({
                 RESULT AREA
             ================================================= */}
 
-            <div className="
-              mt-5
-              border
-              border-[#555555]
-              bg-[#181818]
-              rounded-xl
-              p-4
-              min-h-28
-            ">
+            <div className="scanner-result-panel">
 
               {!result && !loading && (
-                <div className="
-                  text-gray-400
-                  text-center
-                  py-5
-                ">
+                <div className="scanner-message scanner-muted">
                   Scan a sample or search by product name.
                 </div>
               )}
 
 
               {loading && (
-                <div className="
-                  text-center
-                  py-5
-                  text-lg
-                  font-semibold
-                ">
+                <div className="scanner-message">
                   Checking price...
                 </div>
               )}
@@ -1186,28 +1029,15 @@ export default function ScannerModal({
               {/* ERROR */}
 
               {result?.type === "error" && (
-                <div className="text-center">
+                <div className="scanner-center">
 
-                  <div className="
-                    text-red-400
-                    font-semibold
-                    text-lg
-                  ">
+                  <div className="scanner-error">
                     {result.message}
                   </div>
 
 
                   <button
-                    className="
-                      mt-4
-                      bg-gray-600
-                      hover:bg-gray-700
-                      text-white
-                      px-6
-                      py-3
-                      rounded-xl
-                      font-semibold
-                    "
+                    className="scanner-button scanner-button--gray scanner-retry"
                     onClick={unlock}
                   >
                     Try Again
@@ -1224,32 +1054,23 @@ export default function ScannerModal({
               {result?.type === "single" && (
                 <div>
 
-                  <div className="text-center">
+                  <div className="scanner-center">
 
-                    <div className="
-                      text-2xl
-                      font-bold
-                    ">
+                    <div className="scanner-product-name">
                       {result.item.sample_name}
                     </div>
 
 
                     {result.item.variant_name &&
                       result.item.variant_name !== "Standard" && (
-                        <div className="
-                          text-xl
-                          mt-1
-                        ">
+                        <div className="scanner-variant-name">
                           {result.item.variant_name}
                         </div>
                       )}
 
 
                     {result.item.manufacturer && (
-                      <div className="
-                        text-gray-400
-                        mt-1
-                      ">
+                      <div className="scanner-manufacturer">
                         {result.item.manufacturer}
                       </div>
                     )}
@@ -1278,24 +1099,15 @@ export default function ScannerModal({
                 <div>
 
                   {result.sample && (
-                    <div className="
-                      text-center
-                      mb-4
-                    ">
+                    <div className="scanner-center scanner-product-heading">
 
-                      <div className="
-                        text-2xl
-                        font-bold
-                      ">
+                      <div className="scanner-product-name">
                         {result.sample.sample_name}
                       </div>
 
 
                       {result.sample.manufacturer && (
-                        <div className="
-                          text-gray-400
-                          mt-1
-                        ">
+                        <div className="scanner-manufacturer">
                           {result.sample.manufacturer}
                         </div>
                       )}
@@ -1304,36 +1116,23 @@ export default function ScannerModal({
                   )}
 
 
-                  <div className="
-                    font-semibold
-                    text-lg
-                    mb-3
-                  ">
+                  <div className="scanner-results-label">
                     Select a price:
                   </div>
 
 
-                  <div className="space-y-3">
+                  <div className="scanner-card-list">
 
                     {result.items.map((item) => (
 
                       <div
                         key={`${item.barcode}-${item.variant_code}`}
-                        className="
-                          border
-                          border-[#555555]
-                          bg-[#282828]
-                          rounded-xl
-                          p-4
-                        "
+                        className="scanner-card"
                       >
 
                         {/* NAME */}
 
-                        <div className="
-                          font-bold
-                          text-lg
-                        ">
+                        <div className="scanner-card-title">
 
                           {result.sample
                             ? (
@@ -1354,11 +1153,7 @@ export default function ScannerModal({
                           item.thickness ||
                           item.width) && (
 
-                          <div className="
-                            text-sm
-                            text-gray-400
-                            mt-1
-                          ">
+                          <div className="scanner-details">
 
                             {[
                               item.grade,
@@ -1382,18 +1177,7 @@ export default function ScannerModal({
                         {mode === "price" ? (
 
                           <button
-                            className="
-                              w-full
-                              mt-3
-                              bg-blue-600
-                              hover:bg-blue-700
-                              text-white
-                              px-4
-                              py-3
-                              rounded-xl
-                              font-semibold
-                              transition
-                            "
+                            className="scanner-button scanner-button--blue scanner-full-action"
                             onClick={() =>
                               saveForComparison(item)
                             }
@@ -1404,18 +1188,7 @@ export default function ScannerModal({
                         ) : (
 
                           <button
-                            className="
-                              w-full
-                              mt-3
-                              bg-blue-600
-                              hover:bg-blue-700
-                              text-white
-                              px-4
-                              py-3
-                              rounded-xl
-                              font-semibold
-                              transition
-                            "
+                            className="scanner-button scanner-button--blue scanner-full-action"
                             onClick={() =>
                               handleSelect(item)
                             }
@@ -1432,16 +1205,7 @@ export default function ScannerModal({
 
 
                   <button
-                    className="
-                      w-full
-                      mt-4
-                      bg-gray-600
-                      hover:bg-gray-700
-                      text-white
-                      py-3
-                      rounded-xl
-                      font-semibold
-                    "
+                    className="scanner-button scanner-button--gray scanner-cancel"
                     onClick={unlock}
                   >
                     Cancel
@@ -1462,40 +1226,20 @@ export default function ScannerModal({
 
           {mode === "price" && (
 
-            <div className="
-              min-w-0
-              border
-              border-[#555555]
-              bg-[#181818]
-              rounded-xl
-              p-4
-              lg:self-start
-            ">
+            <div className="scanner-comparison">
 
               {/* HEADER */}
 
-              <div className="
-                flex
-                items-center
-                justify-between
-                gap-3
-                mb-4
-              ">
+              <div className="scanner-comparison-header">
 
                 <div>
 
-                  <h3 className="
-                    text-xl
-                    font-bold
-                  ">
+                  <h3 className="scanner-comparison-title">
                     Saved Comparison
                   </h3>
 
 
-                  <div className="
-                    text-sm
-                    text-gray-400
-                  ">
+                  <div className="scanner-comparison-count">
                     {savedItems.length}{" "}
                     {savedItems.length === 1
                       ? "sample"
@@ -1507,17 +1251,7 @@ export default function ScannerModal({
 
                 {savedItems.length > 0 && (
                   <button
-                    className="
-                      bg-red-700
-                      hover:bg-red-800
-                      text-white
-                      px-3
-                      py-2
-                      rounded-lg
-                      text-sm
-                      font-semibold
-                      transition
-                    "
+                    className="scanner-button scanner-button--red scanner-clear"
                     onClick={clearSavedItems}
                   >
                     Clear All
@@ -1530,17 +1264,9 @@ export default function ScannerModal({
               {/* EMPTY COMPARISON */}
 
               {savedItems.length === 0 && (
-                <div className="
-                  border
-                  border-dashed
-                  border-[#555555]
-                  rounded-xl
-                  p-6
-                  text-center
-                  text-gray-400
-                ">
+                <div className="scanner-comparison-empty">
 
-                  <div className="text-3xl mb-2">
+                  <div className="scanner-empty-icon">
                     🏷️
                   </div>
 
@@ -1548,10 +1274,7 @@ export default function ScannerModal({
                     Saved samples will appear here.
                   </div>
 
-                  <div className="
-                    text-sm
-                    mt-2
-                  ">
+                  <div className="scanner-empty-hint">
                     Scan a product, then press
                     {" "}
                     <strong>
@@ -1565,35 +1288,20 @@ export default function ScannerModal({
 
               {/* SAVED ITEMS */}
 
-              <div className="space-y-3">
+              <div className="scanner-card-list">
 
                 {savedItems.map((item) => (
 
                   <div
                     key={`${item.barcode}-${item.variant_code}`}
-                    className="
-                      border
-                      border-[#555555]
-                      bg-[#282828]
-                      rounded-xl
-                      p-4
-                    "
+                    className="scanner-card"
                   >
 
-                    <div className="
-                      flex
-                      justify-between
-                      items-start
-                      gap-3
-                    ">
+                    <div className="scanner-card-top">
 
-                      <div className="min-w-0">
+                      <div className="scanner-min-width">
 
-                        <div className="
-                          font-bold
-                          text-lg
-                          break-words
-                        ">
+                        <div className="scanner-card-title scanner-break">
                           {item.sample_name}
                         </div>
 
@@ -1601,20 +1309,14 @@ export default function ScannerModal({
                         {item.variant_name &&
                           item.variant_name !== "Standard" && (
 
-                            <div className="
-                              text-gray-300
-                            ">
+                            <div className="scanner-variant">
                               {item.variant_name}
                             </div>
                           )}
 
 
                         {item.manufacturer && (
-                          <div className="
-                            text-sm
-                            text-gray-400
-                            mt-1
-                          ">
+                          <div className="scanner-details scanner-details--spaced">
                             {item.manufacturer}
                           </div>
                         )}
@@ -1623,17 +1325,7 @@ export default function ScannerModal({
 
 
                       <button
-                        className="
-                          shrink-0
-                          w-9
-                          h-9
-                          bg-red-700
-                          hover:bg-red-800
-                          text-white
-                          rounded-lg
-                          font-bold
-                          transition
-                        "
+                        className="scanner-icon-button scanner-icon-button--danger"
                         onClick={() =>
                           removeSavedItem(item)
                         }
@@ -1652,11 +1344,7 @@ export default function ScannerModal({
                       item.thickness ||
                       item.width) && (
 
-                      <div className="
-                        text-sm
-                        text-gray-400
-                        mt-2
-                      ">
+                      <div className="scanner-details scanner-details--spaced">
 
                         {[
                           item.grade,
@@ -1693,25 +1381,11 @@ export default function ScannerModal({
             BOTTOM BUTTONS
         ===================================================== */}
 
-        <div className="
-          flex
-          flex-col
-          sm:flex-row
-          gap-3
-          mt-5
-        ">
+        <div className="scanner-bottom-actions">
 
 
           <button
-            className="
-              flex-1
-              py-3
-              bg-gray-600
-              hover:bg-gray-700
-              rounded-xl
-              font-semibold
-              transition
-            "
+            className="scanner-button scanner-button--gray"
             onClick={onClose}
           >
             Close

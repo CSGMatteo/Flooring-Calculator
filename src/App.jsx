@@ -3,6 +3,7 @@ import { Card, CardContent } from "./components/ui/card.jsx";
 import { Button } from "./components/ui/button.jsx";
 import './index.css'
 import { parse } from "postcss";
+import "./App.css"
 import ScannerModal from "./components/ScannerModal.jsx";
 import SampleSignOut from "./components/SampleSignOut.jsx";
 import StairCalculator from "./components/StairCalculator.jsx";
